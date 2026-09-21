@@ -16,7 +16,8 @@ public:
     ~Rectangle(){};
     void moveToNewCoords(const int nx, const int ny);
     void changeSize(const int nh, const int nw);
-    static void printInfo(const Rectangle& req);
+    static void printInfo(const Rectangle& rect);
+    static void getCoords(const Rectangle& rect);
     Rectangle& operator=(const Rectangle& other);
     Rectangle& operator++();
     Rectangle operator++(int value);

@@ -12,12 +12,20 @@ void Rectangle::moveToNewCoords(const int nx, const int ny) {
 }
 
 
-void Rectangle::printInfo(const Rectangle &req) {
-    cout << req.coords[0]
-    << " " << req.coords[1]
-    << " " << req.h
-    << " " << req.w << endl;
+void Rectangle::printInfo(const Rectangle &rect) {
+    cout << rect.coords[0]
+    << " " << rect.coords[1]
+    << " " << rect.h
+    << " " << rect.w << endl;
 }
+
+void Rectangle::getCoords(const Rectangle &rect) {
+    cout << "(" << rect.coords[0] << "; " << rect.coords[1] << "); "
+    << "(" << rect.coords[0] + rect.w << "; " << rect.coords[1] << "); "
+    "(" << rect.coords[0] << "; " << rect.coords[1] + rect.h << "); "
+    "(" << rect.coords[0] + rect.w << "; " << rect.coords[1] + rect.h << ").\n";
+}
+
 
 void Rectangle::changeSize(const int nh, const int nw) {
     this->h = nh;
