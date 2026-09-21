@@ -23,8 +23,6 @@ public:
     Rectangle operator--(int value);
     static void printInfo(const Rectangle& rect);
     Rectangle& operator=(const Rectangle& other);
-    Rectangle& operator++();
-    Rectangle operator++(int value);
 private:
     int coords[2]{0, 0};
     int h=0;
