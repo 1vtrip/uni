@@ -14,6 +14,7 @@ public:
         this->w = w;
     }
     ~Rectangle(){};
+    static void getCoords(const Rectangle& rect);
     void moveToNewCoords(const int nx, const int ny);
     void changeSize(const int nh, const int nw);
     Rectangle& operator++();
