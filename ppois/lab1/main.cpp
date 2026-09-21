@@ -10,5 +10,6 @@ int main() {
     nrec.moveToNewCoords(1, 4);
     nrec.changeSize(2, 4);
     Rectangle::printInfo(nrec);
+    Rectangle::getCoords(nrec);
     return 0;
 }
