@@ -6,6 +6,13 @@
 
 using namespace std;
 
+void Rectangle::getCoords(const Rectangle &rect) {
+    cout << "(" << rect.coords[0] << "; " << rect.coords[1] << "); "
+    << "(" << rect.coords[0] + rect.w << "; " << rect.coords[1] << "); "
+    "(" << rect.coords[0] << "; " << rect.coords[1] + rect.h << "); "
+    "(" << rect.coords[0] + rect.w << "; " << rect.coords[1] + rect.h << ").\n";
+}
+
 void Rectangle::moveToNewCoords(const int nx, const int ny) {
     this->coords[0] = nx;
     this->coords[1] = ny;
