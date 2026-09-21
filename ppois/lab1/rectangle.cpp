@@ -63,17 +63,3 @@ void Rectangle::printInfo(const Rectangle &rect) {
     this->w = other.w;
     return *this;
 }
-
-
-Rectangle& Rectangle::operator++() {
-    ++this->h;
-    ++this->w;
-    return *this;
-}
-
-Rectangle Rectangle::operator++(int value) {
-    Rectangle copy = *this;
-    this->h++;
-    this->w++;
-    return copy;
-}
