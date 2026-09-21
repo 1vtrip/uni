@@ -100,3 +100,14 @@ void Rectangle::printInfo(const Rectangle &rect) {
     this->w = other.w;
     return *this;
 }
+
+bool Rectangle::operator==(const Rectangle& other) {
+    return coords[0] == other.coords[0]
+        && coords[1] == other.coords[1]
+        && h == other.h
+        && w == other.w;
+}
+
+bool Rectangle::operator!=(const Rectangle& other) {
+    return !(*this == other);
+}
