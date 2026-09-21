@@ -39,6 +39,8 @@ public:
     Rectangle& operator-=(const Rectangle& other);
     static void printInfo(const Rectangle& rect);
     Rectangle& operator=(const Rectangle& other);
+    bool operator==(const Rectangle& other) const;
+    bool operator!=(const Rectangle& other) const;
 private:
     int coords[2]{0, 0};
     int h=0;
