@@ -56,19 +56,6 @@ void Rectangle::printInfo(const Rectangle &rect) {
     << " " << rect.w << endl;
 }
 
-void Rectangle::getCoords(const Rectangle &rect) {
-    cout << "(" << rect.coords[0] << "; " << rect.coords[1] << "); "
-    << "(" << rect.coords[0] + rect.w << "; " << rect.coords[1] << "); "
-    "(" << rect.coords[0] << "; " << rect.coords[1] + rect.h << "); "
-    "(" << rect.coords[0] + rect.w << "; " << rect.coords[1] + rect.h << ").\n";
-}
-
-
-void Rectangle::changeSize(const int nh, const int nw) {
-    this->h = nh;
-    this->w = nw;
-}
-
  Rectangle& Rectangle::operator=(const Rectangle &other) {
     this->coords[0] = other.coords[0];
     this->coords[1] = other.coords[1];
