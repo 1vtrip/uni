@@ -11,6 +11,36 @@ void Rectangle::moveToNewCoords(const int nx, const int ny) {
     this->coords[1] = ny;
 }
 
+void Rectangle::changeSize(const int nh, const int nw) {
+    this->h = nh;
+    this->w = nw;
+}
+
+Rectangle& Rectangle::operator++() {
+    ++this->h;
+    ++this->w;
+    return *this;
+}
+
+Rectangle Rectangle::operator++(int value) {
+    Rectangle copy = *this;
+    this->h++;
+    this->w++;
+    return copy;
+}
+
+Rectangle &Rectangle::operator--() {
+    this->h--;
+    this->w--;
+    return *this;
+}
+
+Rectangle Rectangle::operator--(int value) {
+    Rectangle temp = *this;
+    this->h--;
+    this->w--;
+    return *this;
+}
 
 void Rectangle::printInfo(const Rectangle &rect) {
     cout << rect.coords[0]
