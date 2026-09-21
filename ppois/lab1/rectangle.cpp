@@ -49,6 +49,41 @@ Rectangle Rectangle::operator--(int value) {
     return *this;
 }
 
+Rectangle Rectangle::operator+(const Rectangle& other) {
+    int x1 = std::min(this->coords[0], other.coords[0]);
+    int y1 = std::min(this->coords[1], other.coords[1]);
+    int x2 = std::max(this->coords[0] + this->w,
+                      other.coords[0] + other.w);
+    int y2 = std::max(this->coords[1] + this->h,
+                      other.coords[1] + other.h);
+
+    return Rectangle(x1, y1, x2 - x1, y2 - y1);
+}
+
+Rectangle Rectangle::operator-(const Rectangle& other) {
+    int x1 = std::max(this->coords[0], other.coords[0]);
+    int y1 = std::max(this->coords[1], other.coords[1]);
+    int x2 = std::min(this->coords[0] + this->w,
+                      other.coords[0] + other.w);
+    int y2 = std::min(this->coords[1] + this->h,
+                      other.coords[1] + other.h);
+
+    if (x2 <= x1 || y2 <= y1) {
+        return Rectangle(0, 0, 0, 0);
+    }
+    return Rectangle(x1, y1, x2 - x1, y2 - y1);
+}
+
+Rectangle &Rectangle::operator+=(const Rectangle &other) {
+    *this = *this + other;
+    return *this;
+}
+
+Rectangle &Rectangle::operator-=(const Rectangle &other) {
+    *this = *this - other;
+    return *this;
+}
+
 void Rectangle::printInfo(const Rectangle &rect) {
     cout << rect.coords[0]
     << " " << rect.coords[1]
