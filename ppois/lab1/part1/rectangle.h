@@ -7,11 +7,11 @@
 class Rectangle {
 public:
     Rectangle(){};
-    Rectangle(const int x, const int y, const int h, const int w) {
+    Rectangle(const int x, const int y, const int w,  const int h) {
         this->coords[0] = x;
         this->coords[1] = y;
-        this->h = h;
         this->w = w;
+        this->h = h;
     }
     ~Rectangle(){};
     int getX() {
@@ -28,7 +28,7 @@ public:
     }
     static void getCoords(const Rectangle& rect);
     void moveToNewCoords(const int nx, const int ny);
-    void changeSize(const int nh, const int nw);
+    void changeSize(const int nw, const int nh);
     Rectangle& operator++();
     Rectangle operator++(int value);
     Rectangle& operator--();
@@ -39,8 +39,8 @@ public:
     Rectangle& operator-=(const Rectangle& other);
     static void printInfo(const Rectangle& rect);
     Rectangle& operator=(const Rectangle& other);
-    bool operator==(const Rectangle& other) const;
-    bool operator!=(const Rectangle& other) const;
+    bool operator==(const Rectangle& other);
+    bool operator!=(const Rectangle& other);
 private:
     int coords[2]{0, 0};
     int h=0;

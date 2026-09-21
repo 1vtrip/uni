@@ -9,8 +9,8 @@ using namespace std;
 
 void Rectangle::getCoords(const Rectangle &rect) {
     cout << "(" << rect.coords[0] << "; " << rect.coords[1] << "); "
-    << "(" << rect.coords[0] + rect.w << "; " << rect.coords[1] << "); "
-    "(" << rect.coords[0] << "; " << rect.coords[1] + rect.h << "); "
+    << "(" << rect.coords[0] + rect.w << "; " << rect.coords[1] << "); ("
+    << rect.coords[0] << "; " << rect.coords[1] + rect.h << "); "
     "(" << rect.coords[0] + rect.w << "; " << rect.coords[1] + rect.h << ").\n";
 }
 
@@ -19,7 +19,7 @@ void Rectangle::moveToNewCoords(const int nx, const int ny) {
     this->coords[1] = ny;
 }
 
-void Rectangle::changeSize(const int nh, const int nw) {
+void Rectangle::changeSize(const int nw, const int nh) {
     this->h = nh;
     this->w = nw;
 }
@@ -47,7 +47,7 @@ Rectangle Rectangle::operator--(int value) {
     Rectangle temp = *this;
     this->h--;
     this->w--;
-    return *this;
+    return temp;
 }
 
 Rectangle Rectangle::operator+(const Rectangle& other) {
