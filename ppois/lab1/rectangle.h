@@ -33,6 +33,10 @@ public:
     Rectangle operator++(int value);
     Rectangle& operator--();
     Rectangle operator--(int value);
+    Rectangle operator+(const Rectangle& other);
+    Rectangle operator-(const Rectangle& other);
+    Rectangle& operator+=(const Rectangle& other);
+    Rectangle& operator-=(const Rectangle& other);
     static void printInfo(const Rectangle& rect);
     Rectangle& operator=(const Rectangle& other);
 private:
