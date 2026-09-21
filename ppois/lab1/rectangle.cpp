@@ -93,6 +93,7 @@ void Rectangle::printInfo(const Rectangle &rect) {
 }
 
  Rectangle& Rectangle::operator=(const Rectangle &other) {
+    if (this == &other) return *this;
     this->coords[0] = other.coords[0];
     this->coords[1] = other.coords[1];
     this->h = other.h;
