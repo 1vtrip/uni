@@ -14,6 +14,18 @@ public:
         this->w = w;
     }
     ~Rectangle(){};
+    int getX() {
+        return this->coords[0];
+    }
+    int getY() {
+        return this->coords[1];
+    }
+    int getW() {
+        return this->w;
+    }
+    int getH() {
+        return this->h;
+    }
     static void getCoords(const Rectangle& rect);
     void moveToNewCoords(const int nx, const int ny);
     void changeSize(const int nh, const int nw);
