@@ -1,7 +1,7 @@
 //
 // Created by Ivan Triputko on 20.09.2026.
 //
-#include "rectangle.h"
+#include "rectset.h"
 #include <iostream>
 #include <algorithm>
 
@@ -112,6 +112,10 @@ bool Rectangle::operator==(const Rectangle& other) {
         && w == other.w;
 }
 
-bool Rectangle::operator!=(const Rectangle& other) {
-    return !(*this == other);
+ostream& operator<<(ostream& os, const Rectangle& rect) {
+    os << rect.coords[0] << " " << rect.coords[1] << " " << rect.h << " " << rect.w;
+}
+
+std::istream &operator>>(std::istream &is, const Rectangle &rect) {
+    os >> rect.coords[0] >> rect.coords[1] >> rect.h >> rect.w;
 }

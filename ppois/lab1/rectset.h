@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include <iostream>
 
 class Rectangle {
 public:
@@ -41,8 +42,10 @@ public:
     Rectangle& operator=(const Rectangle& other);
     bool operator==(const Rectangle& other);
     bool operator!=(const Rectangle& other);
+    friend std::ostream& operator<<(std::ostream& os, const Rectangle& rect);
+    friend std::istream& operator>>(std::istream& is, const Rectangle& rect);
 private:
     int coords[2]{0, 0};
-    int h=0;
     int w=0;
+    int h=0;
 };
