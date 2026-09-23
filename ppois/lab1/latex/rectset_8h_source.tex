@@ -1,0 +1,56 @@
+\doxysection{rectset.\+h}
+\hypertarget{rectset_8h_source}{}\label{rectset_8h_source}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{comment}{//}}
+\DoxyCodeLine{00002\ \textcolor{comment}{//\ Created\ by\ Ivan\ Triputko\ on\ 20.09.2026.}}
+\DoxyCodeLine{00003\ \textcolor{comment}{//}}
+\DoxyCodeLine{00004\ }
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#pragma\ once}}
+\DoxyCodeLine{00006\ \textcolor{preprocessor}{\#include\ <iostream>}}
+\DoxyCodeLine{00007\ }
+\DoxyCodeLine{00008\ \textcolor{keyword}{class\ }Rectangle\ \{}
+\DoxyCodeLine{00009\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00010\ \ \ \ \ Rectangle()\{\};}
+\DoxyCodeLine{00011\ \ \ \ \ Rectangle(\textcolor{keyword}{const}\ \textcolor{keywordtype}{int}\ x,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{int}\ y,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{int}\ w,\ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{int}\ h)\ \{}
+\DoxyCodeLine{00012\ \ \ \ \ \ \ \ \ this-\/>coords[0]\ =\ x;}
+\DoxyCodeLine{00013\ \ \ \ \ \ \ \ \ this-\/>coords[1]\ =\ y;}
+\DoxyCodeLine{00014\ \ \ \ \ \ \ \ \ this-\/>w\ =\ w;}
+\DoxyCodeLine{00015\ \ \ \ \ \ \ \ \ this-\/>h\ =\ h;}
+\DoxyCodeLine{00016\ \ \ \ \ \}}
+\DoxyCodeLine{00017\ \ \ \ \ \string~Rectangle()\{\};}
+\DoxyCodeLine{00018\ \ \ \ \ \textcolor{keywordtype}{int}\ getX()\ \{}
+\DoxyCodeLine{00019\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ this-\/>coords[0];}
+\DoxyCodeLine{00020\ \ \ \ \ \}}
+\DoxyCodeLine{00021\ \ \ \ \ \textcolor{keywordtype}{int}\ getY()\ \{}
+\DoxyCodeLine{00022\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ this-\/>coords[1];}
+\DoxyCodeLine{00023\ \ \ \ \ \}}
+\DoxyCodeLine{00024\ \ \ \ \ \textcolor{keywordtype}{int}\ getW()\ \{}
+\DoxyCodeLine{00025\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ this-\/>w;}
+\DoxyCodeLine{00026\ \ \ \ \ \}}
+\DoxyCodeLine{00027\ \ \ \ \ \textcolor{keywordtype}{int}\ getH()\ \{}
+\DoxyCodeLine{00028\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ this-\/>h;}
+\DoxyCodeLine{00029\ \ \ \ \ \}}
+\DoxyCodeLine{00030\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keywordtype}{void}\ getCoords(\textcolor{keyword}{const}\ Rectangle\&\ rect);}
+\DoxyCodeLine{00031\ \ \ \ \ \textcolor{keywordtype}{void}\ moveToNewCoords(\textcolor{keyword}{const}\ \textcolor{keywordtype}{int}\ nx,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{int}\ ny);}
+\DoxyCodeLine{00032\ \ \ \ \ \textcolor{keywordtype}{void}\ changeSize(\textcolor{keyword}{const}\ \textcolor{keywordtype}{int}\ nw,\ \textcolor{keyword}{const}\ \textcolor{keywordtype}{int}\ nh);}
+\DoxyCodeLine{00033\ \ \ \ \ Rectangle\&\ operator++();}
+\DoxyCodeLine{00034\ \ \ \ \ Rectangle\ operator++(\textcolor{keywordtype}{int}\ value);}
+\DoxyCodeLine{00035\ \ \ \ \ Rectangle\&\ operator-\/-\/();}
+\DoxyCodeLine{00036\ \ \ \ \ Rectangle\ operator-\/-\/(\textcolor{keywordtype}{int}\ value);}
+\DoxyCodeLine{00037\ \ \ \ \ Rectangle\ operator+(\textcolor{keyword}{const}\ Rectangle\&\ other);}
+\DoxyCodeLine{00038\ \ \ \ \ Rectangle\ operator-\/(\textcolor{keyword}{const}\ Rectangle\&\ other);}
+\DoxyCodeLine{00039\ \ \ \ \ Rectangle\&\ operator+=(\textcolor{keyword}{const}\ Rectangle\&\ other);}
+\DoxyCodeLine{00040\ \ \ \ \ Rectangle\&\ operator-\/=(\textcolor{keyword}{const}\ Rectangle\&\ other);}
+\DoxyCodeLine{00041\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keywordtype}{void}\ printInfo(\textcolor{keyword}{const}\ Rectangle\&\ rect);}
+\DoxyCodeLine{00042\ \ \ \ \ Rectangle\&\ operator=(\textcolor{keyword}{const}\ Rectangle\&\ other);}
+\DoxyCodeLine{00043\ \ \ \ \ \textcolor{keywordtype}{bool}\ operator==(\textcolor{keyword}{const}\ Rectangle\&\ other);}
+\DoxyCodeLine{00044\ \ \ \ \ \textcolor{keywordtype}{bool}\ operator!=(\textcolor{keyword}{const}\ Rectangle\&\ other);}
+\DoxyCodeLine{00045\ \ \ \ \ \textcolor{keyword}{friend}\ std::ostream\&\ operator<<(std::ostream\&\ os,\ \textcolor{keyword}{const}\ Rectangle\&\ rect);}
+\DoxyCodeLine{00046\ \ \ \ \ \textcolor{keyword}{friend}\ std::istream\&\ operator>>(std::istream\&\ is,\ Rectangle\&\ rect);}
+\DoxyCodeLine{00047\ \textcolor{keyword}{private}:}
+\DoxyCodeLine{00048\ \ \ \ \ \textcolor{keywordtype}{int}\ coords[2]\{0,\ 0\};}
+\DoxyCodeLine{00049\ \ \ \ \ \textcolor{keywordtype}{int}\ w=0;}
+\DoxyCodeLine{00050\ \ \ \ \ \textcolor{keywordtype}{int}\ h=0;}
+\DoxyCodeLine{00051\ \};}
+
+\end{DoxyCode}

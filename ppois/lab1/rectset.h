@@ -43,7 +43,7 @@ public:
     bool operator==(const Rectangle& other);
     bool operator!=(const Rectangle& other);
     friend std::ostream& operator<<(std::ostream& os, const Rectangle& rect);
-    friend std::istream& operator>>(std::istream& is, const Rectangle& rect);
+    friend std::istream& operator>>(std::istream& is, Rectangle& rect);
 private:
     int coords[2]{0, 0};
     int w=0;

@@ -88,8 +88,8 @@ Rectangle &Rectangle::operator-=(const Rectangle &other) {
 void Rectangle::printInfo(const Rectangle &rect) {
     cout << rect.coords[0]
     << " " << rect.coords[1]
-    << " " << rect.h
-    << " " << rect.w << endl;
+    << " " << rect.w
+    << " " << rect.h << endl;
 }
 
  Rectangle& Rectangle::operator=(const Rectangle &other) {
@@ -113,9 +113,17 @@ bool Rectangle::operator==(const Rectangle& other) {
 }
 
 ostream& operator<<(ostream& os, const Rectangle& rect) {
-    os << rect.coords[0] << " " << rect.coords[1] << " " << rect.h << " " << rect.w;
+    os << rect.coords[0] << " " << rect.coords[1] << " " << rect.w << " " << rect.h;
+    return os;
 }
 
-std::istream &operator>>(std::istream &is, const Rectangle &rect) {
-    os >> rect.coords[0] >> rect.coords[1] >> rect.h >> rect.w;
+std::istream& operator>>(std::istream& is, Rectangle& rect) {
+    int x, y, w, h;
+    if (is >> x >> y >> w >> h) {
+        rect.coords[0] = x;
+        rect.coords[1] = y;
+        rect.w = w;
+        rect.h = h;
+    }
+    return is;
 }
