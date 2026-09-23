@@ -128,6 +128,26 @@ Set& Set::operator-=(const Set& other) {
     return *this;
 }
 
+Set Set::operator*(const Set& other) {
+    Set temp;
+    for (char el : atom) {
+        if (std::find(other.atom.begin(), other.atom.end(), el) != other.atom.end()) {
+            temp.atom.push_back(el);
+        }
+    }
+    for (const Set& subset : subsets) {
+        if (std::find(other.subsets.begin(), other.subsets.end(), subset) != other.subsets.end()) {
+            temp.subsets.push_back(subset);
+        }
+    }
+    return temp;
+}
+
+Set& Set::operator*=(const Set& other) {
+    *this = *this * other;
+    return *this;
+}
+
 bool Set::operator==(const Set& other) const {
     return atom == other.atom && subsets == other.subsets;
 }
