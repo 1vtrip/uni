@@ -79,6 +79,55 @@ Set Set::operator+(const Set& other) const {
     return temp;
 }
 
+Set Set::operator-(const Set& other) {
+    Set temp = *this;
+    for (char el : other.atom) {
+        if (std::find(temp.atom.begin(), temp.atom.end(), el) != temp.atom.end()) {
+            auto it = std::find(temp.atom.begin(), temp.atom.end(), el);
+            temp.atom.erase(it);
+        }
+    }
+    for (const Set& subset : other.subsets) {
+        if (std::find(temp.subsets.begin(), temp.subsets.end(), subset) != temp.subsets.end()) {
+            auto it = find(temp.subsets.begin(), temp.subsets.end(), subset);
+            temp.subsets.erase(it);
+        }
+    }
+    return temp;
+}
+
+Set& Set::operator+=(const Set& other) {
+    for (char el : other.atom) {
+        auto it = std::find(atom.begin(), atom.end(), el);
+        if (it == atom.end()) {
+            this->atom.push_back(el);
+        }
+    }
+    for (const Set& subset : other.subsets) {
+        auto it = std::find(this->subsets.begin(), this->subsets.end(), subset);
+        if (it == this->subsets.end()) {
+            this->subsets.push_back(subset);
+        }
+    }
+    return *this;
+}
+
+Set& Set::operator-=(const Set& other) {
+    for (char el : other.atom) {
+        auto it = std::find(atom.begin(), atom.end(), el);
+        if (it != atom.end()) {
+            this->atom.erase(it);
+        }
+    }
+    for (const Set& subset : other.subsets) {
+        auto it = std::find(this->subsets.begin(), this->subsets.end(), subset);
+        if (it != this->subsets.end()) {
+            this->subsets.erase(it);
+        }
+    }
+    return *this;
+}
+
 bool Set::operator==(const Set& other) const {
     return atom == other.atom && subsets == other.subsets;
 }
