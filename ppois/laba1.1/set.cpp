@@ -151,3 +151,13 @@ Set& Set::operator*=(const Set& other) {
 bool Set::operator==(const Set& other) const {
     return atom == other.atom && subsets == other.subsets;
 }
+
+bool Set::operator[](char natom) const {
+    auto it = std::find(atom.begin(), atom.end(), natom);
+    return it != atom.end();
+}
+
+bool Set::operator[](const Set& subset) const {
+    auto it = std::find(subsets.begin(), subsets.end(), subset);
+    return it != subsets.end();
+}
