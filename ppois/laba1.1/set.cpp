@@ -161,3 +161,32 @@ bool Set::operator[](const Set& subset) const {
     auto it = std::find(subsets.begin(), subsets.end(), subset);
     return it != subsets.end();
 }
+
+Set Set::powerSet() const {
+    Set temp;
+    temp.addElement(Set());
+    for (char el : atom) {
+        Set singleAtom;
+        singleAtom.addElement(el);
+        temp.addElement(singleAtom);
+    }
+    for (const Set& subset : subsets) {
+        temp.addElement(subset);
+    }
+    if (atom.size() >= 2) {
+        Set pairAtom;
+        for (char el : atom) {
+            pairAtom.addElement(el);
+        }
+        temp.addElement(pairAtom);
+    }
+    for (char el : atom) {
+        for (const Set& subset : subsets) {
+            Set mixed;
+            mixed.addElement(el);
+            mixed.addElement(subset);
+            temp.addElement(mixed);
+        }
+    }
+    return temp;
+}
