@@ -9,13 +9,64 @@
 
 void Set::parseString(const std::string& str) {
     std::stack<Set> st;
+    std::string atom = "";
     for (char el : str) {
         if (el == '{') {
             st.push(Set());
-        } else if (el == ',' || el == ' ') {
-            continue;
-        } else if (el == '}') {
+            atom = "";
+        }
+        else if (el == ',') {
+            if (!atom.empty()) {
+                st.top().atom.push_back(atom);
+                atom = "";
+            }
+        }
+        else if (el == '}') {
+            if (!atom.empty()) {
+                st.top().atom.push_back(atom);
+                atom = "";
+            }
             if (st.empty()) return;
+            Set top = st.top();
+            st.pop();
+            if (st.empty()) *this = top;
+            else st.top().subsets.push_back(top);
+        } else if (el == ' ') continue;
+        else atom += el;
+    }
+}
+
+void Set::parseString(const char* str) {
+    if (!str) return;
+    int str_len = strlen(str);
+    char* word = new char[str_len + 1];
+    int start_pos = 0;
+    std::stack<Set> st;
+    for (int i = 0; str[i] != '\0'; ++i) {
+        if (str[i] == '{') {
+            st.push(Set());
+            start_pos = i + 1;
+        }
+        else if (str[i] == ',') {
+            int len = i - start_pos;
+            if (len > 0 && !st.empty()) {
+                strncpy(word, str + start_pos, len);
+                word[len] = '\0';
+                st.top().atom.push_back(word);
+            }
+            start_pos = i + 1;
+        }
+        else if (str[i] == '}') {
+            int len = i - start_pos;
+            if (len > 0 && !st.empty()) {
+                strncpy(word, str + start_pos, len);
+                word[len] = '\0';
+                st.top().atom.push_back(word);
+            }
+            if (st.empty()) {
+                delete[] word;
+                return;
+            }
             Set top = st.top();
             st.pop();
             if (st.empty()) {
@@ -23,11 +74,10 @@ void Set::parseString(const std::string& str) {
             } else {
                 st.top().subsets.push_back(top);
             }
-        } else {
-            if (st.empty()) return;
-            st.top().atom.push_back(el);
+            start_pos = i + 1;
         }
     }
+    delete[] word;
 }
 
 bool Set::isEmpty() const {
@@ -39,12 +89,14 @@ size_t Set::getSize() const {
 }
 
 Set& Set::addElement(char natom) {
-    atom.push_back(natom);
+    auto it = std::find(atom.begin(), atom.end(), natom);
+    if (it == atom.end()) atom.push_back(natom);
     return *this;
 }
 
 Set& Set::addElement(const Set& nsubset) {
-    subsets.push_back(nsubset);
+    auto it = std::find(subsets.begin(), subsets.end(), nsubset);
+    if (it == subsets.end()) subsets.push_back(nsubset);
     return *this;
 }
 
@@ -64,7 +116,7 @@ Set& Set::deleteElement(const Set& subset) {
     return *this;
 }
 
-Set Set::operator+(const Set& other) const {
+Set Set::operator+(const Set& other) {
     Set temp = *this;
     for (char el : other.atom) {
         if (std::find(temp.atom.begin(), temp.atom.end(), el) == temp.atom.end()) {
