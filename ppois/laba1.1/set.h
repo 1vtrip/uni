@@ -13,9 +13,9 @@ public:
     void parseString(const char* str);
     bool isEmpty() const;
     size_t getSize() const;
-    Set& addElement(char natom);
+    Set& addElement(const std::string& natom);
     Set& addElement(const Set& nsubset);
-    Set& deleteElement(char ch);
+    Set& deleteElement(const std::string& natom);
     Set& deleteElement(const Set& subset);
     Set operator+(const Set& other);
     Set operator-(const Set& other);
@@ -24,10 +24,10 @@ public:
     Set operator*(const Set& other);
     Set& operator*=(const Set& other);
     bool operator==(const Set& other) const;
-    bool operator[](const char atom);
-    bool operator[](const Set& subset);
+    bool operator[](const std::string& atom) const;
+    bool operator[](const Set& subset) const;
     Set powerSet() const;
 private:
-    std::vector<char> atom;
+    std::vector<std::string> atom;
     std::vector<Set> subsets;
 };

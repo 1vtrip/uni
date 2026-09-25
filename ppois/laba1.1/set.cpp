@@ -43,6 +43,10 @@ void Set::parseString(const char* str) {
     int start_pos = 0;
     std::stack<Set> st;
     for (int i = 0; str[i] != '\0'; ++i) {
+        if (str[i] == ' ') {
+            if (start_pos == i) start_pos = i + 1;
+            continue;
+        }
         if (str[i] == '{') {
             st.push(Set());
             start_pos = i + 1;
@@ -88,7 +92,7 @@ size_t Set::getSize() const {
     return atom.size() + subsets.size();
 }
 
-Set& Set::addElement(char natom) {
+Set& Set::addElement(const std::string& natom) {
     auto it = std::find(atom.begin(), atom.end(), natom);
     if (it == atom.end()) atom.push_back(natom);
     return *this;
@@ -100,11 +104,9 @@ Set& Set::addElement(const Set& nsubset) {
     return *this;
 }
 
-Set& Set::deleteElement(char ch) {
-    auto it = std::find(atom.begin(), atom.end(), ch);
-    if (it != atom.end()) {
-        atom.erase(it);
-    }
+Set& Set::deleteElement(const std::string& natom) {
+    auto it = std::find(atom.begin(), atom.end(), natom);
+    if (it != atom.end()) atom.erase(it);
     return *this;
 }
 
@@ -118,7 +120,7 @@ Set& Set::deleteElement(const Set& subset) {
 
 Set Set::operator+(const Set& other) {
     Set temp = *this;
-    for (char el : other.atom) {
+    for (std::string el : other.atom) {
         if (std::find(temp.atom.begin(), temp.atom.end(), el) == temp.atom.end()) {
             temp.atom.push_back(el);
         }
@@ -133,7 +135,7 @@ Set Set::operator+(const Set& other) {
 
 Set Set::operator-(const Set& other) {
     Set temp = *this;
-    for (char el : other.atom) {
+    for (std::string el : other.atom) {
         if (std::find(temp.atom.begin(), temp.atom.end(), el) != temp.atom.end()) {
             auto it = std::find(temp.atom.begin(), temp.atom.end(), el);
             temp.atom.erase(it);
@@ -149,7 +151,7 @@ Set Set::operator-(const Set& other) {
 }
 
 Set& Set::operator+=(const Set& other) {
-    for (char el : other.atom) {
+    for (std::string el : other.atom) {
         auto it = std::find(atom.begin(), atom.end(), el);
         if (it == atom.end()) {
             this->atom.push_back(el);
@@ -165,7 +167,7 @@ Set& Set::operator+=(const Set& other) {
 }
 
 Set& Set::operator-=(const Set& other) {
-    for (char el : other.atom) {
+    for (std::string el : other.atom) {
         auto it = std::find(atom.begin(), atom.end(), el);
         if (it != atom.end()) {
             this->atom.erase(it);
@@ -182,7 +184,7 @@ Set& Set::operator-=(const Set& other) {
 
 Set Set::operator*(const Set& other) {
     Set temp;
-    for (char el : atom) {
+    for (std::string el : atom) {
         if (std::find(other.atom.begin(), other.atom.end(), el) != other.atom.end()) {
             temp.atom.push_back(el);
         }
@@ -204,7 +206,7 @@ bool Set::operator==(const Set& other) const {
     return atom == other.atom && subsets == other.subsets;
 }
 
-bool Set::operator[](char natom) const {
+bool Set::operator[](const std::string& natom) const {
     auto it = std::find(atom.begin(), atom.end(), natom);
     return it != atom.end();
 }
@@ -215,30 +217,17 @@ bool Set::operator[](const Set& subset) const {
 }
 
 Set Set::powerSet() const {
-    Set temp;
-    temp.addElement(Set());
-    for (char el : atom) {
-        Set singleAtom;
-        singleAtom.addElement(el);
-        temp.addElement(singleAtom);
-    }
-    for (const Set& subset : subsets) {
-        temp.addElement(subset);
-    }
-    if (atom.size() >= 2) {
-        Set pairAtom;
-        for (char el : atom) {
-            pairAtom.addElement(el);
+    Set result;
+    size_t num_combinations = 1ULL << this->getSize();
+    for (size_t i = 0; i < num_combinations; ++i) {
+        Set current_combination;
+        for (size_t a = 0; a < atom.size(); ++a) {
+            if (i & (1ULL << a))  current_combination.addElement(atom[a]);
         }
-        temp.addElement(pairAtom);
-    }
-    for (char el : atom) {
-        for (const Set& subset : subsets) {
-            Set mixed;
-            mixed.addElement(el);
-            mixed.addElement(subset);
-            temp.addElement(mixed);
+        for (size_t s = 0; s < subsets.size(); ++s) {
+            if (i & (1ULL << (atom.size() + s)))  current_combination.addElement(subsets[s]);
         }
+        result.addElement(current_combination);
     }
-    return temp;
+    return result;
 }
