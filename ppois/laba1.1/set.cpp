@@ -217,17 +217,21 @@ bool Set::operator[](const Set& subset) const {
 }
 
 Set Set::powerSet() const {
+    std::vector<Set> all_elements;
+    for (const auto& a : atom) all_elements.push_back(a);
+    for (const auto& s : subsets) all_elements.push_back(s);
+    std::vector<Set> power_set_list = { Set() };
+    for (const auto& element : all_elements) {
+        size_t current_size = power_set_list.size();
+        for (size_t i = 0; i < current_size; ++i) {
+            Set new_set = power_set_list[i];
+            new_set.addElement(element);
+            power_set_list.push_back(new_set);
+        }
+    }
     Set result;
-    size_t num_combinations = 1ULL << this->getSize();
-    for (size_t i = 0; i < num_combinations; ++i) {
-        Set current_combination;
-        for (size_t a = 0; a < atom.size(); ++a) {
-            if (i & (1ULL << a))  current_combination.addElement(atom[a]);
-        }
-        for (size_t s = 0; s < subsets.size(); ++s) {
-            if (i & (1ULL << (atom.size() + s)))  current_combination.addElement(subsets[s]);
-        }
-        result.addElement(current_combination);
+    for (const auto& set_item : power_set_list) {
+        result.addElement(set_item);
     }
     return result;
 }
