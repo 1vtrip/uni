@@ -60,5 +60,5 @@ bool Money::operator<(const Money& other) const {
 }
 
 std::ostream& operator<<(std::ostream& os, const Money& m) {
-    return os << m.coins_ / 100.0 << " rub\n";
+    return os << m.coins_ / 100.0 << " rub";
 }
