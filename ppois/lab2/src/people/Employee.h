@@ -1,0 +1,43 @@
+#pragma once
+#include <string>
+#include "people/Person.h"
+#include "people/Schedule.h"
+#include "core/Money.h"
+
+/** @brief Forward declaration: в заголовке Device нужен только как const Device&. */
+class Device;
+
+/** @brief Абстрактный сотрудник фирмы: должность, дата найма, оклад и график смен. */
+class Employee : public Person {
+public:
+    Employee(int id, const std::string& name, const ContactInfo& contacts, const Date& birth,
+             const std::string& position, const Date& hired, const Money& baseSalary);
+
+    /**
+     * @brief Зарплата за месяц. Чисто виртуальная, но с реализацией: возвращает оклад.
+     * Каждый наследник обязан переопределить её и может вызвать Employee::calculateSalary.
+     */
+    virtual Money calculateSalary(int month) const = 0;
+    /** @brief Может ли сотрудник ремонтировать это устройство; по умолчанию нет (только мастер). */
+    virtual bool canWorkOn(const Device& d) const;
+    /** @brief Базовый вывод + должность и оклад. */
+    void print(std::ostream& os) const override;
+
+    /** @brief Стаж в полных годах на дату today. */
+    int experienceYears(const Date& today) const;
+    /** @brief Добавить смену в график; false, если она некорректна или пересекается с другой. */
+    bool addShift(const Shift& s);   // TODO(exc): исключение придёт из Schedule::add
+    /** @brief Сколько всего часов в графике. */
+    int hoursWorked() const;
+
+    const std::string& getPosition() const;
+    const Date& getHired() const;
+    const Money& getBaseSalary() const;
+    const Schedule& getSchedule() const;
+
+protected:
+    std::string position_;
+    Date hired_;
+    Money baseSalary_;
+    Schedule schedule_;
+};
