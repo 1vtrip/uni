@@ -7,8 +7,11 @@
 /** @brief Forward declaration: в заголовке Device нужен только как const Device&. */
 class Device;
 
-/** @brief Абстрактный сотрудник фирмы: должность, дата найма, оклад и график смен. */
-class Employee : public Person {
+/**
+ * @brief Абстрактный сотрудник фирмы: должность, дата найма, оклад и график смен.
+ * Наследование virtual: в EmployeeClient (ромб) часть Person будет одна.
+ */
+class Employee : public virtual Person {
 public:
     Employee(int id, const std::string& name, const ContactInfo& contacts, const Date& birth,
              const std::string& position, const Date& hired, const Money& baseSalary);
@@ -36,6 +39,9 @@ public:
     const Schedule& getSchedule() const;
 
 protected:
+    /** @brief Вывод только своих полей (без Person::print): нужен EmployeeClient, чтобы имя не повторялось. */
+    void printEmployeePart(std::ostream& os) const;
+
     std::string position_;
     Date hired_;
     Money baseSalary_;

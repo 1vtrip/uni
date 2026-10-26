@@ -11,6 +11,10 @@ std::string Client::getRole() const { return "Клиент"; }
 
 void Client::print(std::ostream& os) const {
     Person::print(os);
+    printClientPart(os);
+}
+
+void Client::printClientPart(std::ostream& os) const {
     os << ", карта " << card_.getLevel() << " (" << card_.getPoints() << " баллов), заказов " << orderIds_.size();
 }
 

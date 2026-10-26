@@ -6,7 +6,8 @@
 
 Accountant::Accountant(int id, const std::string& name, const ContactInfo& contacts, const Date& birth,
                        const Date& hired, const Money& baseSalary, const std::string& certificate)
-    : Employee(id, name, contacts, birth, "Бухгалтер", hired, baseSalary), certificate_(certificate) {}
+    : Person(id, name, contacts, birth),
+      Employee(id, name, contacts, birth, "Бухгалтер", hired, baseSalary), certificate_(certificate) {}
 
 std::string Accountant::getRole() const { return "Бухгалтер"; }
 

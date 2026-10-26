@@ -5,7 +5,8 @@
 
 Manager::Manager(int id, const std::string& name, const ContactInfo& contacts, const Date& birth,
                  const Date& hired, const Money& baseSalary, const std::string& department, double bonusPercent)
-    : Employee(id, name, contacts, birth, "Менеджер", hired, baseSalary),
+    : Person(id, name, contacts, birth),
+      Employee(id, name, contacts, birth, "Менеджер", hired, baseSalary),
       department_(department), bonusPercent_(bonusPercent) {}
 
 std::string Manager::getRole() const { return "Менеджер"; }

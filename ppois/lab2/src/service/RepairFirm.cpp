@@ -21,6 +21,12 @@ int RepairFirm::indexOfCorporate(int id) const {
     return -1;
 }
 
+int RepairFirm::indexOfEmployeeClient(int id) const {
+    for (size_t i = 0; i < employeeClients_.size(); ++i)
+        if (employeeClients_[i].getId() == id) return (int)i;
+    return -1;
+}
+
 int RepairFirm::addClient(const std::string& name, const ContactInfo& c, const Date& birth) {
     if (!c.validate()) return -1;   // TODO(exc): исключение придёт из ContactInfo::validate
     int id = newId();
@@ -39,18 +45,24 @@ int RepairFirm::addCorporateClient(const std::string& name, const ContactInfo& c
     return id;
 }
 
-bool RepairFirm::hasClient(int id) const { return indexOfClient(id) != -1 || indexOfCorporate(id) != -1; }
+bool RepairFirm::hasClient(int id) const {
+    return indexOfClient(id) != -1 || indexOfCorporate(id) != -1 || indexOfEmployeeClient(id) != -1;
+}
 
 /** @brief Возвращает ссылку на базовую часть: для корпоративного клиента виртуальные методы останутся его. */
 Client& RepairFirm::clientById(int id) {
     int i = indexOfClient(id);
     if (i != -1) return clients_[i];
+    int e = indexOfEmployeeClient(id);
+    if (e != -1) return employeeClients_[e];
     return corporateClients_[indexOfCorporate(id)];   // TODO(exc): ClientNotFoundException, если нет и здесь
 }
 
 const Client& RepairFirm::clientById(int id) const {
     int i = indexOfClient(id);
     if (i != -1) return clients_[i];
+    int e = indexOfEmployeeClient(id);
+    if (e != -1) return employeeClients_[e];
     return corporateClients_[indexOfCorporate(id)];
 }
 
@@ -85,6 +97,12 @@ bool RepairFirm::hire(const Courier& c) {
     for (size_t i = 0; i < couriers_.size(); ++i)
         if (couriers_[i] == c) return false;
     couriers_.push_back(c);
+    return true;
+}
+
+bool RepairFirm::hire(const EmployeeClient& ec) {
+    if (indexOfEmployeeClient(ec.getId()) != -1) return false;
+    employeeClients_.push_back(ec);
     return true;
 }
 
@@ -308,6 +326,7 @@ Money RepairFirm::salaryFund(int month) const {
     for (size_t i = 0; i < managers_.size(); ++i)      total += managers_[i].calculateSalary(month);
     for (size_t i = 0; i < accountants_.size(); ++i)   total += accountants_[i].calculateSalary(month);
     for (size_t i = 0; i < couriers_.size(); ++i)      total += couriers_[i].calculateSalary(month);
+    for (size_t i = 0; i < employeeClients_.size(); ++i) total += employeeClients_[i].calculateSalary(month);
     return total;
 }
 
@@ -383,6 +402,7 @@ const std::vector<Receptionist>& RepairFirm::getReceptionists() const { return r
 const std::vector<Manager>& RepairFirm::getManagers() const { return managers_; }
 const std::vector<Accountant>& RepairFirm::getAccountants() const { return accountants_; }
 const std::vector<Courier>& RepairFirm::getCouriers() const { return couriers_; }
+const std::vector<EmployeeClient>& RepairFirm::getEmployeeClients() const { return employeeClients_; }
 const std::vector<RepairOrder>& RepairFirm::getOrders() const { return orders_; }
 const std::vector<Invoice>& RepairFirm::getInvoices() const { return invoices_; }
 const std::vector<Payment>& RepairFirm::getPayments() const { return payments_; }

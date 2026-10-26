@@ -11,6 +11,10 @@ bool Employee::canWorkOn(const Device&) const { return false; }
 
 void Employee::print(std::ostream& os) const {
     Person::print(os);
+    printEmployeePart(os);
+}
+
+void Employee::printEmployeePart(std::ostream& os) const {
     os << ", " << position_ << ", оклад " << baseSalary_;
 }
 

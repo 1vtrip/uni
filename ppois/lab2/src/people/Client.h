@@ -9,8 +9,11 @@
 class RepairOrder;
 class Invoice;
 
-/** @brief Клиент фирмы: карта лояльности и номера своих заказов. Поля protected — есть наследник. */
-class Client : public Person {
+/**
+ * @brief Клиент фирмы: карта лояльности и номера своих заказов. Поля protected — есть наследники.
+ * Наследование virtual: в EmployeeClient (ромб) часть Person будет одна.
+ */
+class Client : public virtual Person {
 public:
     /** @brief Новый клиент получает пустую карту с номером "LC-<id>". */
     Client(int id, const std::string& name, const ContactInfo& contacts, const Date& birth,
@@ -40,6 +43,9 @@ public:
     const std::vector<int>& getOrderIds() const;
 
 protected:
+    /** @brief Вывод только своих полей (без Person::print): нужен EmployeeClient, чтобы имя не повторялось. */
+    void printClientPart(std::ostream& os) const;
+
     Date registered_;
     LoyaltyCard card_;
     std::vector<int> orderIds_;

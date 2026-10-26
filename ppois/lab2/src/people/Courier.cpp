@@ -2,7 +2,8 @@
 
 Courier::Courier(int id, const std::string& name, const ContactInfo& contacts, const Date& birth,
                  const Date& hired, const Money& baseSalary, const std::string& carNumber)
-    : Employee(id, name, contacts, birth, "Курьер", hired, baseSalary),
+    : Person(id, name, contacts, birth),
+      Employee(id, name, contacts, birth, "Курьер", hired, baseSalary),
       carNumber_(carNumber), deliveredCount_(0) {}
 
 std::string Courier::getRole() const { return "Курьер"; }

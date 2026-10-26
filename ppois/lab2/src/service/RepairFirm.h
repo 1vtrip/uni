@@ -23,6 +23,7 @@
 #include "people/Manager.h"
 #include "people/Accountant.h"
 #include "people/Courier.h"
+#include "people/EmployeeClient.h"
 #include "workshop/Workshop.h"
 #include "workshop/Appointment.h"
 #include "workshop/Delivery.h"
@@ -48,9 +49,9 @@ public:
     /** @brief Добавить корпоративного клиента; -1, если контакты или УНП неверные. */
     int addCorporateClient(const std::string& name, const ContactInfo& c, const Date& birth,
                            const std::string& company, const std::string& taxId, const ServiceContract& contract);
-    /** @brief Есть ли клиент (обычный или корпоративный) с таким ID. */
+    /** @brief Есть ли клиент (обычный, корпоративный или сотрудник-клиент) с таким ID. */
     bool hasClient(int id) const;
-    /** @brief Клиент по ID. Сначала проверить hasClient! Для корпоративного вернётся его часть Client. */
+    /** @brief Клиент по ID. Сначала проверить hasClient! Для наследников вернётся их часть Client. */
     Client& clientById(int id);   // TODO(exc): вместе с hasClient -> findClient + ClientNotFoundException
     const Client& clientById(int id) const;
 
@@ -61,6 +62,8 @@ public:
     bool hire(const Manager& m);
     bool hire(const Accountant& a);
     bool hire(const Courier& c);
+    /** @brief Нанять сотрудника-клиента: он одновременно сотрудник (зарплата) и клиент (заказы). */
+    bool hire(const EmployeeClient& ec);
     /** @brief Индекс мастера по ID или -1. */
     int indexOfTechnician(int id) const;
     /** @brief Индекс наименее загруженного мастера, который может работать с устройством, или -1. */
@@ -140,6 +143,7 @@ public:
     const std::vector<Manager>& getManagers() const;
     const std::vector<Accountant>& getAccountants() const;
     const std::vector<Courier>& getCouriers() const;
+    const std::vector<EmployeeClient>& getEmployeeClients() const;
     const std::vector<RepairOrder>& getOrders() const;
     const std::vector<Invoice>& getInvoices() const;
     const std::vector<Payment>& getPayments() const;
@@ -158,6 +162,8 @@ private:
     int indexOfClient(int id) const;
     /** @brief Индекс корпоративного клиента по ID или -1. */
     int indexOfCorporate(int id) const;
+    /** @brief Индекс сотрудника-клиента по ID или -1. */
+    int indexOfEmployeeClient(int id) const;
     /** @brief Отправить клиенту заказа уведомление о текущем статусе. */
     void notifyStatus(int orderIndex);
 
@@ -170,6 +176,7 @@ private:
     std::vector<Manager> managers_;
     std::vector<Accountant> accountants_;
     std::vector<Courier> couriers_;
+    std::vector<EmployeeClient> employeeClients_;
     std::vector<RepairOrder> orders_;
     std::vector<Invoice> invoices_;
     std::vector<Payment> payments_;

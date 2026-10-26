@@ -3,7 +3,7 @@
 CorporateClient::CorporateClient(int id, const std::string& name, const ContactInfo& contacts, const Date& birth,
                                  const Date& registered, const std::string& company, const std::string& taxId,
                                  const ServiceContract& contract)
-    : Client(id, name, contacts, birth, registered), company_(company), taxId_(taxId), contract_(contract) {}
+    : Person(id, name, contacts, birth), Client(id, name, contacts, birth, registered), company_(company), taxId_(taxId), contract_(contract) {}
 
 std::string CorporateClient::getRole() const { return "Корпоративный клиент"; }
 

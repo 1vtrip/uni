@@ -3,7 +3,8 @@
 
 Technician::Technician(int id, const std::string& name, const ContactInfo& contacts, const Date& birth,
                        const Date& hired, const Money& baseSalary, int level, int maxTasks)
-    : Employee(id, name, contacts, birth, "Мастер", hired, baseSalary),
+    : Person(id, name, contacts, birth),
+      Employee(id, name, contacts, birth, "Мастер", hired, baseSalary),
       level_(level), completedTasks_(0), maxTasks_(maxTasks) {}
 
 std::string Technician::getRole() const { return "Мастер"; }

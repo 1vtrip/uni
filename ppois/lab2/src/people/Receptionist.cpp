@@ -4,7 +4,8 @@
 
 Receptionist::Receptionist(int id, const std::string& name, const ContactInfo& contacts, const Date& birth,
                            const Date& hired, const Money& baseSalary)
-    : Employee(id, name, contacts, birth, "Приёмщик", hired, baseSalary), acceptedCount_(0) {}
+    : Person(id, name, contacts, birth),
+      Employee(id, name, contacts, birth, "Приёмщик", hired, baseSalary), acceptedCount_(0) {}
 
 std::string Receptionist::getRole() const { return "Приёмщик"; }
 
