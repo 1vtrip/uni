@@ -7,9 +7,10 @@
 #include "devices/Brand.h"
 #include "devices/DeviceCategory.h"
 #include "devices/Defect.h"
+#include "interfaces/IPrintable.h"
 
 /** @brief Устройство, принятое в ремонт. Не абстрактное: хранится по значению в RepairOrder. */
-class Device {
+class Device : public IPrintable {
 public:
     Device(const std::string& serial, const std::string& model, const Brand& brand,
            const DeviceCategory& category, const Date& purchased);
@@ -25,8 +26,8 @@ public:
     virtual bool needsHomeVisit() const;
     /** @brief Быстрая проверка при приёмке, у каждого типа свои тесты. */
     virtual std::vector<Defect> quickTest(const Date& today) const;
-    /** @brief Вывести устройство в поток (вызывается из operator<<). */
-    virtual void print(std::ostream& os) const;
+    /** @brief Вывести устройство в поток (из IPrintable, вызывается общим operator<<). */
+    void print(std::ostream& os) const override;
 
     /** @brief Возраст устройства в полных месяцах. */
     int ageMonths(const Date& today) const;
@@ -49,6 +50,3 @@ protected:
     DeviceCategory category_;
     Date purchased_;
 };
-
-/** @brief Вывод любого устройства через виртуальный print(). */
-std::ostream& operator<<(std::ostream& os, const Device& d);

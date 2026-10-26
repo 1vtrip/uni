@@ -3,9 +3,10 @@
 #include <iostream>
 #include "core/ContactInfo.h"
 #include "core/Date.h"
+#include "interfaces/IPrintable.h"
 
 /** @brief Абстрактный человек: клиент или сотрудник. Создать просто Person нельзя. */
-class Person {
+class Person : public IPrintable {
 public:
     Person(int id, const std::string& name, const ContactInfo& contacts, const Date& birth);
     virtual ~Person() = default;
@@ -13,7 +14,7 @@ public:
     /** @brief Роль человека в фирме. Чисто виртуальная: из-за неё класс абстрактный. */
     virtual std::string getRole() const = 0;
     /** @brief Вывод "Роль #id: Имя"; наследники дописывают свои поля. */
-    virtual void print(std::ostream& os) const;
+    void print(std::ostream& os) const override;
 
     /** @brief Возраст в полных годах на дату today. */
     int age(const Date& today) const;
@@ -35,6 +36,3 @@ protected:
     ContactInfo contacts_;
     Date birthDate_;
 };
-
-/** @brief Вывод любого человека через виртуальный print(). */
-std::ostream& operator<<(std::ostream& os, const Person& p);

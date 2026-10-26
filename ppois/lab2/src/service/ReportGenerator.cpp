@@ -59,6 +59,12 @@ int ReportGenerator::overdueCount(const std::vector<RepairOrder>& orders, const 
     return n;
 }
 
+std::string ReportGenerator::checkStatus(const ICertifiable& item, const Date& today) const {
+    return item.needsCheck(today) ? "требуется проверка" : "в порядке";
+}
+
+Money ReportGenerator::unpaid(const IPayable& item) const { return item.amountDue(); }
+
 const Date& ReportGenerator::getFrom() const { return from_; }
 const Date& ReportGenerator::getTo() const { return to_; }
 

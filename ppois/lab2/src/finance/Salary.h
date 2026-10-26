@@ -1,9 +1,10 @@
 #pragma once
 #include <iostream>
 #include "core/Money.h"
+#include "interfaces/IPayable.h"
 
 /** @brief Зарплата сотрудника за месяц: оклад, премии, удержания и подоходный налог 13%. */
-class Salary {
+class Salary : public IPayable {
 public:
     Salary(int employeeId, int month, const Money& base);
 
@@ -17,6 +18,12 @@ public:
     Money tax() const;
     /** @brief К выплате: начислено минус налог. */
     Money net() const;
+    /** @brief К выплате: net(), если зарплата не выдана, иначе 0 (из IPayable). */
+    Money amountDue() const override;
+    /** @brief Выдана ли зарплата (из IPayable). */
+    bool isPaid() const override;
+    /** @brief Отметить зарплату выданной (из IPayable). */
+    void markPaid() override;
 
     int getEmployeeId() const;
     int getMonth() const;
@@ -35,4 +42,5 @@ private:
     Money base_;
     Money bonus_;
     Money deductions_;
+    bool paid_;
 };

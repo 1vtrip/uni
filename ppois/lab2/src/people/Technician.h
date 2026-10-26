@@ -2,9 +2,10 @@
 #include <vector>
 #include "people/Employee.h"
 #include "people/Specialization.h"
+#include "interfaces/ICertifiable.h"
 
 /** @brief Мастер: специализации, уровень 1-5 и задачи, над которыми он работает. */
-class Technician : public Employee {
+class Technician : public Employee, public ICertifiable {
 public:
     Technician(int id, const std::string& name, const ContactInfo& contacts, const Date& birth,
                const Date& hired, const Money& baseSalary, int level, int maxTasks);
@@ -36,10 +37,17 @@ public:
     const std::vector<int>& getActiveTaskIds() const;
     const std::vector<Specialization>& getSpecializations() const;
 
+    /** @brief Нужна ли аттестация: с прошлой прошло больше года (из ICertifiable). */
+    bool needsCheck(const Date& today) const override;
+    /** @brief Аттестовать мастера в день today (из ICertifiable). */
+    void certify(const Date& today) override;
+    const Date& getCertified() const;
+
 private:
     std::vector<Specialization> specs_;
     int level_;
     std::vector<int> activeTaskIds_;
     int completedTasks_;
     int maxTasks_;
+    Date certified_;
 };

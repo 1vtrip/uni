@@ -22,8 +22,3 @@ const Date& Person::getBirthDate() const { return birthDate_; }
 
 bool Person::operator==(const Person& other) const { return id_ == other.id_; }
 bool Person::operator!=(const Person& other) const { return !(*this == other); }
-
-std::ostream& operator<<(std::ostream& os, const Person& p) {
-    p.print(os);
-    return os;
-}

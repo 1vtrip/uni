@@ -1,7 +1,7 @@
 #include "finance/Salary.h"
 
 Salary::Salary(int employeeId, int month, const Money& base)
-    : employeeId_(employeeId), month_(month), base_(base), bonus_(), deductions_() {}
+    : employeeId_(employeeId), month_(month), base_(base), bonus_(), deductions_(), paid_(false) {}
 
 bool Salary::addBonus(const Money& m) {
     if (m < Money()) return false;
@@ -25,6 +25,10 @@ Money Salary::tax() const { return gross().percent(13); }
 
 Money Salary::net() const { return gross() - tax(); }
 
+Money Salary::amountDue() const { return paid_ ? Money() : net(); }
+bool Salary::isPaid() const { return paid_; }
+void Salary::markPaid() { paid_ = true; }
+
 int Salary::getEmployeeId() const { return employeeId_; }
 int Salary::getMonth() const { return month_; }
 const Money& Salary::getBase() const { return base_; }
@@ -40,5 +44,5 @@ bool Salary::operator!=(const Salary& other) const { return !(*this == other); }
 std::ostream& operator<<(std::ostream& os, const Salary& s) {
     return os << "Зарплата сотрудника #" << s.employeeId_ << " за месяц " << s.month_
               << ": оклад " << s.base_ << ", премии " << s.bonus_ << ", удержания " << s.deductions_
-              << ", налог " << s.tax() << ", к выплате " << s.net();
+              << ", налог " << s.tax() << ", к выплате " << s.net() << (s.paid_ ? " [выдана]" : "");
 }

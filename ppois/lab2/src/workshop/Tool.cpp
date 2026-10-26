@@ -18,6 +18,9 @@ bool Tool::needsCalibration(const Date& today) const { return calibrated_.daysTo
 
 void Tool::calibrate(const Date& today) { calibrated_ = today; }
 
+bool Tool::needsCheck(const Date& today) const { return needsCalibration(today); }
+void Tool::certify(const Date& today) { calibrate(today); }
+
 int Tool::daysToCalibration(const Date& today) const { return 180 - calibrated_.daysTo(today); }
 
 const std::string& Tool::getInvNumber() const { return invNumber_; }

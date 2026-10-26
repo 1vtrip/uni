@@ -9,6 +9,7 @@
 #include "repair/OrderStatus.h"
 #include "repair/Diagnosis.h"
 #include "repair/RepairTask.h"
+#include "interfaces/IPrintable.h"
 
 /**
  * @brief Заказ на ремонт: устройство, статус, срок, диагноз и работы.
@@ -16,7 +17,7 @@
  * Срок, цена диагностики и описание устройства вычисляются в конструкторе, пока параметр
  * device ещё ссылается на настоящий объект наследника.
  */
-class RepairOrder {
+class RepairOrder : public IPrintable {
 public:
     RepairOrder(int id, int clientId, const Device& device, const std::string& problem,
                 const Date& created, bool urgent);
@@ -59,7 +60,8 @@ public:
     /** @brief Заказы равны, если совпадает id. */
     bool operator==(const RepairOrder& other) const;
     bool operator!=(const RepairOrder& other) const;
-    friend std::ostream& operator<<(std::ostream& os, const RepairOrder& o);
+    /** @brief Номер, устройство, проблема, статус, сроки и работы (из IPrintable). */
+    void print(std::ostream& os) const override;
 
 private:
     int id_;

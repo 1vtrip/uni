@@ -4,6 +4,8 @@
 #include <iostream>
 #include "core/Date.h"
 #include "core/Money.h"
+#include "interfaces/ICertifiable.h"
+#include "interfaces/IPayable.h"
 
 /** @brief Forward declaration: в заголовке нужны только как ссылки. */
 class Invoice;
@@ -29,6 +31,10 @@ public:
     Money salaryOf(const Employee& e, int month) const;
     /** @brief Сколько заказов просрочено на дату today. */
     int overdueCount(const std::vector<RepairOrder>& orders, const Date& today) const;
+    /** @brief Статус проверки для любого ICertifiable: и мастера, и инструмента. */
+    std::string checkStatus(const ICertifiable& item, const Date& today) const;
+    /** @brief Сколько не оплачено для любого IPayable: и счёта, и зарплаты. */
+    Money unpaid(const IPayable& item) const;
 
     const Date& getFrom() const;
     const Date& getTo() const;

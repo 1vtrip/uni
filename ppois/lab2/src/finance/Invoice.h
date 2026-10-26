@@ -5,9 +5,11 @@
 #include "core/Money.h"
 #include "finance/InvoiceLine.h"
 #include "finance/Discount.h"
+#include "interfaces/IPrintable.h"
+#include "interfaces/IPayable.h"
 
 /** @brief Счёт клиенту за заказ: строки, необязательная скидка и признак оплаты. */
-class Invoice {
+class Invoice : public IPrintable, public IPayable {
 public:
     Invoice(int id, int orderId, int clientId, const Date& date);
 
@@ -21,8 +23,10 @@ public:
     Money total() const;
     /** @brief Просрочен: не оплачен, и с даты счёта прошло больше termDays дней. */
     bool isOverdue(const Date& today, int termDays) const;
-    /** @brief Отметить счёт оплаченным. */
-    void markPaid();
+    /** @brief Отметить счёт оплаченным (из IPayable). */
+    void markPaid() override;
+    /** @brief К оплате: итог, если счёт не оплачен, иначе 0 (из IPayable). */
+    Money amountDue() const override;
 
     int getId() const;
     int getOrderId() const;
@@ -31,12 +35,13 @@ public:
     const Date& getDate() const;
     bool hasDiscount() const;
     const Discount& getDiscount() const;
-    bool isPaid() const;
+    bool isPaid() const override;
 
     /** @brief Счета равны, если совпадает id. */
     bool operator==(const Invoice& other) const;
     bool operator!=(const Invoice& other) const;
-    friend std::ostream& operator<<(std::ostream& os, const Invoice& inv);
+    /** @brief Строки, скидка, итог и отметка об оплате (из IPrintable). */
+    void print(std::ostream& os) const override;
 
 private:
     int id_;

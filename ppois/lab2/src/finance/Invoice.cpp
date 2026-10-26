@@ -37,6 +37,8 @@ bool Invoice::isOverdue(const Date& today, int termDays) const {
 
 void Invoice::markPaid() { paid_ = true; }
 
+Money Invoice::amountDue() const { return paid_ ? Money() : total(); }
+
 int Invoice::getId() const { return id_; }
 int Invoice::getOrderId() const { return orderId_; }
 int Invoice::getClientId() const { return clientId_; }
@@ -49,14 +51,13 @@ bool Invoice::isPaid() const { return paid_; }
 bool Invoice::operator==(const Invoice& other) const { return id_ == other.id_; }
 bool Invoice::operator!=(const Invoice& other) const { return !(*this == other); }
 
-std::ostream& operator<<(std::ostream& os, const Invoice& inv) {
-    os << "Счёт №" << inv.id_ << " от " << inv.date_ << " (заказ №" << inv.orderId_
-       << ", клиент #" << inv.clientId_ << ")";
-    for (size_t i = 0; i < inv.lines_.size(); ++i)
-        os << "\n  " << inv.lines_[i];
-    if (inv.hasDiscount_)
-        os << "\n  Скидка " << inv.discount_.getCode() << " " << inv.discount_.getPercent()
-           << "%: -" << inv.discount_.amount(inv.subtotal());
-    os << "\n  Итого: " << inv.total() << (inv.paid_ ? " [ОПЛАЧЕН]" : " [не оплачен]");
-    return os;
+void Invoice::print(std::ostream& os) const {
+    os << "Счёт №" << id_ << " от " << date_ << " (заказ №" << orderId_
+       << ", клиент #" << clientId_ << ")";
+    for (size_t i = 0; i < lines_.size(); ++i)
+        os << "\n  " << lines_[i];
+    if (hasDiscount_)
+        os << "\n  Скидка " << discount_.getCode() << " " << discount_.getPercent()
+           << "%: -" << discount_.amount(subtotal());
+    os << "\n  Итого: " << total() << (paid_ ? " [ОПЛАЧЕН]" : " [не оплачен]");
 }

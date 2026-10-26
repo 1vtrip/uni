@@ -85,11 +85,10 @@ bool RepairOrder::isUrgent() const { return urgent_; }
 bool RepairOrder::operator==(const RepairOrder& other) const { return id_ == other.id_; }
 bool RepairOrder::operator!=(const RepairOrder& other) const { return !(*this == other); }
 
-std::ostream& operator<<(std::ostream& os, const RepairOrder& o) {
-    os << "Заказ №" << o.id_ << (o.urgent_ ? " [СРОЧНО]" : "") << ": " << o.deviceInfo_
-       << "\n  Проблема: " << o.problem_ << "\n  Статус: " << o.status_
-       << ", принят " << o.created_ << ", срок " << o.deadline_ << ", клиент #" << o.clientId_;
-    for (size_t i = 0; i < o.tasks_.size(); ++i)
-        os << "\n  " << o.tasks_[i];
-    return os;
+void RepairOrder::print(std::ostream& os) const {
+    os << "Заказ №" << id_ << (urgent_ ? " [СРОЧНО]" : "") << ": " << deviceInfo_
+       << "\n  Проблема: " << problem_ << "\n  Статус: " << status_
+       << ", принят " << created_ << ", срок " << deadline_ << ", клиент #" << clientId_;
+    for (size_t i = 0; i < tasks_.size(); ++i)
+        os << "\n  " << tasks_[i];
 }

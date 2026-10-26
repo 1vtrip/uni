@@ -5,7 +5,7 @@ Technician::Technician(int id, const std::string& name, const ContactInfo& conta
                        const Date& hired, const Money& baseSalary, int level, int maxTasks)
     : Person(id, name, contacts, birth),
       Employee(id, name, contacts, birth, "Мастер", hired, baseSalary),
-      level_(level), completedTasks_(0), maxTasks_(maxTasks) {}
+      level_(level), completedTasks_(0), maxTasks_(maxTasks), certified_(hired) {}
 
 std::string Technician::getRole() const { return "Мастер"; }
 
@@ -67,3 +67,8 @@ int Technician::getCompletedTasks() const { return completedTasks_; }
 int Technician::getMaxTasks() const { return maxTasks_; }
 const std::vector<int>& Technician::getActiveTaskIds() const { return activeTaskIds_; }
 const std::vector<Specialization>& Technician::getSpecializations() const { return specs_; }
+
+/** @brief Первая аттестация считается проведённой в день найма. */
+bool Technician::needsCheck(const Date& today) const { return certified_.daysTo(today) > 365; }
+void Technician::certify(const Date& today) { certified_ = today; }
+const Date& Technician::getCertified() const { return certified_; }

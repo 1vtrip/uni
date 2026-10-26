@@ -2,9 +2,10 @@
 #include <string>
 #include <iostream>
 #include "core/Date.h"
+#include "interfaces/ICertifiable.h"
 
 /** @brief Инструмент: инвентарный номер, дата калибровки и кто его сейчас держит (0 — на месте). */
-class Tool {
+class Tool : public ICertifiable {
 public:
     Tool(const std::string& invNumber, const std::string& name, const Date& calibrated);
 
@@ -20,6 +21,10 @@ public:
     void calibrate(const Date& today);
     /** @brief Сколько дней осталось до следующей калибровки (отрицательно, если просрочена). */
     int daysToCalibration(const Date& today) const;
+    /** @brief То же, что needsCalibration (из ICertifiable). */
+    bool needsCheck(const Date& today) const override;
+    /** @brief То же, что calibrate (из ICertifiable). */
+    void certify(const Date& today) override;
 
     const std::string& getInvNumber() const;
     const std::string& getName() const;

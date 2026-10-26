@@ -38,9 +38,3 @@ const Date& Device::getPurchased() const { return purchased_; }
 
 bool Device::operator==(const Device& other) const { return serial_ == other.serial_; }
 bool Device::operator!=(const Device& other) const { return !(*this == other); }
-
-/** @brief print() виртуальный, поэтому для наследника выведется его версия. */
-std::ostream& operator<<(std::ostream& os, const Device& d) {
-    d.print(os);
-    return os;
-}
