@@ -32,8 +32,8 @@
 
 /**
  * @brief Фирма по ремонту: владеет всеми объектами и связывает их по ID.
- * Методы с ошибкой возвращают false или -1 и ничего не меняют. Правило всех методов:
- * сначала все проверки, потом изменения. Ссылки на элементы векторов не хранятся.
+ * Ошибки сообщаются исключениями (exceptions/Exceptions.h). Правило всех методов:
+ * сначала все проверки (они и бросают), потом изменения. Ссылки на элементы векторов не хранятся.
  */
 class RepairFirm {
 public:
@@ -44,16 +44,16 @@ public:
     int newId();
 
     /** @name Клиенты */
-    /** @brief Добавить клиента и вернуть его ID; -1, если телефон или e-mail неверные. */
-    int addClient(const std::string& name, const ContactInfo& c, const Date& birth);   // TODO(exc): InvalidClientDataException
-    /** @brief Добавить корпоративного клиента; -1, если контакты или УНП неверные. */
+    /** @brief Добавить клиента и вернуть его ID; неверные телефон или e-mail -> InvalidClientDataException. */
+    int addClient(const std::string& name, const ContactInfo& c, const Date& birth);
+    /** @brief Добавить корпоративного клиента; неверные контакты или УНП -> InvalidClientDataException. */
     int addCorporateClient(const std::string& name, const ContactInfo& c, const Date& birth,
                            const std::string& company, const std::string& taxId, const ServiceContract& contract);
     /** @brief Есть ли клиент (обычный, корпоративный или сотрудник-клиент) с таким ID. */
     bool hasClient(int id) const;
-    /** @brief Клиент по ID. Сначала проверить hasClient! Для наследников вернётся их часть Client. */
-    Client& clientById(int id);   // TODO(exc): вместе с hasClient -> findClient + ClientNotFoundException
-    const Client& clientById(int id) const;
+    /** @brief Клиент по ID; нет -> ClientNotFoundException. Для наследников вернётся их часть Client. */
+    Client& findClient(int id);
+    const Client& findClient(int id) const;
 
     /** @name Сотрудники (перегрузка) */
     /** @brief Нанять сотрудника; false, если сотрудник с таким ID уже есть в этой должности. */
@@ -64,69 +64,64 @@ public:
     bool hire(const Courier& c);
     /** @brief Нанять сотрудника-клиента: он одновременно сотрудник (зарплата) и клиент (заказы). */
     bool hire(const EmployeeClient& ec);
-    /** @brief Индекс мастера по ID или -1. */
-    int indexOfTechnician(int id) const;
-    /** @brief Индекс наименее загруженного мастера, который может работать с устройством, или -1. */
-    int freeTechnicianIndex(const Device& d) const;   // TODO(exc): TechnicianNotAvailableException
+    /** @brief Наименее загруженный мастер, который может работать с устройством; нет -> TechnicianNotAvailableException. */
+    Technician& freeTechnician(const Device& d);
 
     /** @name Заказы */
     /**
      * @brief Принять устройство: заказ создаёт приёмщик, срок считается по настоящему типу d.
-     * -1, если клиента нет, у него слишком много активных заказов или нет приёмщика.
+     * Нет клиента -> ClientNotFoundException; лимит заказов или нет приёмщика -> RepairFirmException.
      */
     int createOrder(int clientId, const Device& d, const std::string& problem, bool urgent);
-    /** @brief Индекс заказа по ID или -1. */
-    int indexOfOrder(int id) const;   // TODO(exc): вместе с orderAt -> findOrder + OrderNotFoundException
-    /** @brief Заказ по индексу из indexOfOrder. Ссылку не хранить: после createOrder она может устареть. */
-    RepairOrder& orderAt(int index);
-    const RepairOrder& orderAt(int index) const;
+    /** @brief Есть ли заказ с таким ID. */
+    bool hasOrder(int id) const;
+    /** @brief Заказ по ID; нет -> OrderNotFoundException. Ссылку не хранить: после createOrder она может устареть. */
+    RepairOrder& findOrder(int id);
+    const RepairOrder& findOrder(int id) const;
     /**
-     * @brief Диагностика. d — настоящее устройство (в заказе лежит срезанная копия), поэтому
-     * quickTest вызывается виртуально у d. false, если заказа нет, устройство чужое, мастера нет
-     * или устройство неремонтопригодно (тогда заказ отменяется).
+     * @brief Диагностика. d — настоящее устройство (в заказе лежит срезанная копия), поэтому quickTest
+     * вызывается виртуально у d. Неремонтопригодно -> заказ отменяется, DeviceNotRepairableException.
      */
-    bool runDiagnosis(int orderId, const Device& d);
-    /** @brief Добавить работу, назначить мастера через менеджера, перевести в ремонт. ID задачи или -1. */
+    void runDiagnosis(int orderId, const Device& d);
+    /** @brief Добавить работу, назначить мастера через менеджера, перевести в ремонт; вернуть ID задачи. */
     int addTask(int orderId, const std::string& description);
     /**
-     * @brief Выдать запчасть со склада в задачу. Порядок: найти, проверить совместимость и остаток,
-     * только потом списать. Если запчасти нет, заказ переходит в "Ожидание запчастей" (если можно).
+     * @brief Выдать запчасть со склада в задачу. Сначала проверки, потом списание. Нет запчасти ->
+     * заказ в "Ожидание запчастей" (если можно) и OutOfStockException; не подходит -> IncompatiblePartException.
      */
-    bool issuePart(int orderId, int taskId, const std::string& article, int qty);   // TODO(exc): OutOfStockException / IncompatiblePartException
+    void issuePart(int orderId, int taskId, const std::string& article, int qty);
     /** @brief Закрыть задачу у заказа и у мастера; если все готовы — на проверку качества. */
-    bool finishTask(int orderId, int taskId, double hours);
-    /** @brief Проверка качества: успех — "Готов" и уведомление, провал — обратно в ремонт и false. */
-    bool qualityCheck(int orderId, bool ok);   // TODO(exc): QualityCheckFailedException
+    void finishTask(int orderId, int taskId, double hours);
+    /** @brief Проверка качества: успех — "Готов" и уведомление; провал — обратно в ремонт и QualityCheckFailedException. */
+    void qualityCheck(int orderId, bool ok);
     /** @brief Просроченные заказы на сегодня. */
     std::vector<RepairOrder> overdueOrders() const;
 
     /** @name Деньги */
-    /** @brief Выставить счёт по готовому заказу (скидка клиента — отдельной строкой). ID счёта или -1. */
+    /** @brief Выставить счёт по готовому заказу (скидка клиента — отдельной строкой); вернуть ID счёта. */
     int billOrder(int orderId);
-    /** @brief Индекс счёта по ID или -1. */
-    int indexOfInvoice(int id) const;
-    /** @brief Индекс счёта по заказу или -1. */
-    int indexOfInvoiceForOrder(int orderId) const;
-    /** @brief Оплатить счёт: платёж, деньги в кассу, баллы на карту клиента. */
-    bool payInvoice(int invoiceId, const Money& sum, const PaymentMethod& m);   // TODO(exc): InsufficientFundsException
+    /** @brief Счёт по ID; нет -> RepairFirmException. */
+    const Invoice& findInvoice(int id) const;
+    /** @brief Оплатить счёт: платёж, деньги в кассу, баллы на карту. Внесено мало -> InsufficientFundsException. */
+    void payInvoice(int invoiceId, const Money& sum, const PaymentMethod& m);
     /** @brief Выдать устройство клиенту (счёт должен быть оплачен) и оформить гарантию 3 месяца. */
-    bool issueToClient(int orderId);
+    void issueToClient(int orderId);
     /** @brief Выручка за месяц: оплаченные счета с датой в этом месяце. */
     Money monthRevenue(int month, int year) const;
     /** @brief Фонд зарплаты за месяц: сумма calculateSalary всех сотрудников (полиморфно). */
     Money salaryFund(int month) const;
 
     /** @name Запись, доставка, склад, отзывы */
-    /** @brief Записать клиента на приём; -1, если клиента нет, час нерабочий или время занято. */
-    int bookAppointment(int clientId, const Date& date, int hour, const std::string& purpose);   // TODO(exc): ScheduleConflictException
-    /** @brief Отправить курьера с устройством по заказу на адрес to (наименее занятый курьер). ID или -1. */
+    /** @brief Записать клиента на приём и вернуть ID; час нерабочий или время занято -> ScheduleConflictException. */
+    int bookAppointment(int clientId, const Date& date, int hour, const std::string& purpose);
+    /** @brief Отправить наименее занятого курьера с устройством по заказу на адрес to; вернуть ID доставки. */
     int arrangeDelivery(int orderId, const Address& to);
     /** @brief Отметить доставку выполненной у доставки и у курьера. */
-    bool completeDelivery(int deliveryId);
-    /** @brief Принять поставку от поставщика на склад. false, если уже принята. */
-    bool receivePurchase(PurchaseOrder& po);
-    /** @brief Оставить отзыв о выданном заказе; false, если заказ чужой, не выдан или отзыв некорректен. */
-    bool addReview(int clientId, int orderId, int rating, const std::string& text);   // TODO(exc): InvalidReviewException
+    void completeDelivery(int deliveryId);
+    /** @brief Принять поставку на склад; ждущие запчастей заказы — снова в ремонт. Уже принята -> RepairFirmException. */
+    void receivePurchase(PurchaseOrder& po);
+    /** @brief Оставить отзыв о выданном заказе; заказ чужой или не выдан -> RepairFirmException, некорректен -> InvalidReviewException. */
+    void addReview(int clientId, int orderId, int rating, const std::string& text);
 
     /** @name Дата */
     const Date& today() const;
@@ -158,14 +153,16 @@ public:
     const NotificationService& getNotifier() const;
 
 private:
-    /** @brief Индекс обычного клиента по ID или -1. */
+    /** @brief Индексы по ID или -1: внутренние помощники для has… и find… */
     int indexOfClient(int id) const;
-    /** @brief Индекс корпоративного клиента по ID или -1. */
     int indexOfCorporate(int id) const;
-    /** @brief Индекс сотрудника-клиента по ID или -1. */
     int indexOfEmployeeClient(int id) const;
+    int indexOfTechnician(int id) const;
+    int indexOfOrder(int id) const;
+    int indexOfInvoice(int id) const;
+    int indexOfInvoiceForOrder(int orderId) const;
     /** @brief Отправить клиенту заказа уведомление о текущем статусе. */
-    void notifyStatus(int orderIndex);
+    void notifyStatus(const RepairOrder& o);
 
     std::string name_;
     Date today_;

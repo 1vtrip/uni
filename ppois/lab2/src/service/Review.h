@@ -7,8 +7,8 @@ class Review {
 public:
     Review(int clientId, int orderId, int rating, const std::string& text);
 
-    /** @brief Корректен ли отзыв: оценка 1-5, а при оценке ниже 3 текст обязателен. */
-    bool validate() const;   // TODO(exc): InvalidReviewException, метод станет void
+    /** @brief Проверить отзыв: оценка 1-5, а при оценке ниже 3 текст обязателен; иначе InvalidReviewException. */
+    void validate() const;
     /** @brief Положительный отзыв: оценка 4 или 5. */
     bool isPositive() const;
 

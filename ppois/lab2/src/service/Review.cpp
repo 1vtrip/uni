@@ -1,12 +1,12 @@
 #include "service/Review.h"
+#include "exceptions/Exceptions.h"
 
 Review::Review(int clientId, int orderId, int rating, const std::string& text)
     : clientId_(clientId), orderId_(orderId), rating_(rating), text_(text) {}
 
-bool Review::validate() const {
-    if (rating_ < 1 || rating_ > 5) return false;   // TODO(exc): InvalidReviewException(rating_)
-    if (rating_ < 3 && text_.empty()) return false;   // TODO(exc): InvalidReviewException(rating_)
-    return true;
+void Review::validate() const {
+    if (rating_ < 1 || rating_ > 5) throw InvalidReviewException(rating_);
+    if (rating_ < 3 && text_.empty()) throw InvalidReviewException(rating_);
 }
 
 bool Review::isPositive() const { return rating_ >= 4; }
