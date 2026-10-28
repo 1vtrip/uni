@@ -11,8 +11,8 @@ public:
 
     /** @brief Начислить 1 балл за каждый полный рубль покупки и пересчитать уровень. */
     void addPoints(const Money& purchase);
-    /** @brief Списать баллы; в discount записывается скидка (1 балл = 1 коп.). false, если баллов не хватает. */
-    bool spendPoints(int points, Money& discount);   // TODO(exc): InsufficientFundsException
+    /** @brief Списать баллы и вернуть скидку (1 балл = 1 коп.); не хватает баллов -> InsufficientFundsException. */
+    Money spendPoints(int points);
     /** @brief Уровень по всем когда-либо начисленным баллам: от 500 серебро, от 2000 золото. */
     void updateLevel();
     /** @brief Скидка по уровню: 0, 3 или 7 процентов. */

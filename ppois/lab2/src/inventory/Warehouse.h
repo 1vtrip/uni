@@ -15,13 +15,11 @@ public:
     void add(const SparePart& part, int qty, int minQty);
     /** @brief Есть ли на складе позиция с таким артикулом. */
     bool contains(const std::string& article) const;
-    /** @brief Индекс позиции по артикулу или -1, если её нет. */
-    int indexOf(const std::string& article) const;   // TODO(exc): вместе с itemAt -> find + OutOfStockException
-    /** @brief Позиция по индексу из indexOf. Ссылку не хранить: после add она может устареть. */
-    StockItem& itemAt(int index);
-    const StockItem& itemAt(int index) const;
-    /** @brief Выдать qty штук: зарезервировать и сразу списать; false, если позиции нет или не хватает. */
-    bool take(const std::string& article, int qty);   // TODO(exc): OutOfStockException
+    /** @brief Позиция по артикулу; нет такой -> OutOfStockException. Ссылку не хранить: после add она может устареть. */
+    StockItem& find(const std::string& article);
+    const StockItem& find(const std::string& article) const;
+    /** @brief Выдать qty штук: зарезервировать и сразу списать, вернуть копию запчасти. Нет или мало -> OutOfStockException. */
+    SparePart take(const std::string& article, int qty);
     /** @brief Позиции, которые пора дозаказать. */
     std::vector<StockItem> lowStock() const;
     /** @brief Стоимость склада по закупочным ценам. */
@@ -33,6 +31,9 @@ public:
     friend std::ostream& operator<<(std::ostream& os, const Warehouse& w);
 
 private:
+    /** @brief Индекс позиции по артикулу или -1 (внутренний помощник для add, contains и find). */
+    int indexOf(const std::string& article) const;
+
     Address address_;
     std::vector<StockItem> items_;
 };

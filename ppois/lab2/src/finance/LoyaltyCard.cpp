@@ -1,4 +1,5 @@
 #include "finance/LoyaltyCard.h"
+#include "exceptions/Exceptions.h"
 
 LoyaltyCard::LoyaltyCard(const std::string& number)
     : number_(number), points_(0), totalEarned_(0), level_("Базовый") {}
@@ -11,11 +12,11 @@ void LoyaltyCard::addPoints(const Money& purchase) {
     updateLevel();
 }
 
-bool LoyaltyCard::spendPoints(int points, Money& discount) {
-    if (points <= 0 || points > points_) return false;   // TODO(exc): InsufficientFundsException("Недостаточно баллов на карте " + number_)
+Money LoyaltyCard::spendPoints(int points) {
+    if (points <= 0 || points > points_)
+        throw InsufficientFundsException("на карте " + number_ + " " + std::to_string(points_) + " баллов");
     points_ -= points;
-    discount = Money(points);
-    return true;
+    return Money(points);
 }
 
 /** @brief Уровень считается по totalEarned_, поэтому трата баллов его не понижает. */

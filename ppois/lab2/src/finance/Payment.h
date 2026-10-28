@@ -13,11 +13,11 @@ public:
 
     /**
      * @brief Провести оплату: в кассу идёт сумма счёта минус комиссия, счёт помечается оплаченным.
-     * false, если счёт не тот, уже оплачен, платёж уже проведён или внесено меньше суммы счёта.
+     * Счёт не тот, уже оплачен или платёж проведён -> RepairFirmException; внесено мало -> InsufficientFundsException.
      */
-    bool process(Invoice& inv, CashRegister& cash);   // TODO(exc): InsufficientFundsException
-    /** @brief Вернуть деньги из кассы; false, если платёж не проведён, уже возвращён или в кассе не хватает. */
-    bool refund(CashRegister& cash);                   // TODO(exc): InsufficientFundsException
+    void process(Invoice& inv, CashRegister& cash);
+    /** @brief Вернуть деньги из кассы. Платёж не проведён или уже возвращён -> RepairFirmException; в кассе мало -> InsufficientFundsException. */
+    void refund(CashRegister& cash);
     /** @brief Сдача клиенту: внесено минус сумма счёта (0, если внесено не больше). */
     Money change(const Invoice& inv) const;
 

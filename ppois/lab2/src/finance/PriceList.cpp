@@ -1,4 +1,5 @@
 #include "finance/PriceList.h"
+#include "exceptions/Exceptions.h"
 
 PriceList::PriceList(const Money& hourRate, double urgentMarkup)
     : hourRate_(hourRate), urgentMarkup_(urgentMarkup) {}
@@ -15,7 +16,11 @@ int PriceList::indexOf(const std::string& code) const {
     return -1;
 }
 
-const ServiceItem& PriceList::itemAt(int index) const { return items_[index]; }
+const ServiceItem& PriceList::find(const std::string& code) const {
+    int i = indexOf(code);
+    if (i == -1) throw RepairFirmException("Услуги с кодом " + code + " нет в прайс-листе");
+    return items_[i];
+}
 
 Money PriceList::laborCost(double hours, bool urgent) const {
     Money cost = hourRate_ * hours;

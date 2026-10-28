@@ -12,8 +12,8 @@ public:
     bool isPhoneValid() const;
     /** @brief Ровно одна @, имя и домен непустые, после @ есть точка, точки нет на краях домена. */
     bool isEmailValid() const;
-    /** @brief Проверить телефон и e-mail; false, если что-то из них неверно. */
-    bool validate() const;   // TODO(exc): InvalidClientDataException
+    /** @brief Проверить телефон и e-mail; неверный -> InvalidClientDataException с причиной. */
+    void validate() const;
 
     const std::string& getPhone() const;
     const std::string& getEmail() const;

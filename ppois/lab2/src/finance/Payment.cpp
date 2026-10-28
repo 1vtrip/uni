@@ -1,26 +1,28 @@
 #include "finance/Payment.h"
+#include "exceptions/Exceptions.h"
 #include <string>
 
 Payment::Payment(int invoiceId, const Money& amount, const PaymentMethod& method, const Date& date)
     : invoiceId_(invoiceId), amount_(amount), method_(method), date_(date),
       processed_(false), refunded_(false), deposited_() {}
 
-bool Payment::process(Invoice& inv, CashRegister& cash) {
-    if (processed_ || inv.getId() != invoiceId_ || inv.isPaid()) return false;   // TODO(exc): RepairFirmException
-    if (amount_ < inv.total()) return false;   // TODO(exc): InsufficientFundsException("Внесено меньше суммы счёта")
+void Payment::process(Invoice& inv, CashRegister& cash) {
+    if (processed_) throw RepairFirmException("Платёж уже проведён");
+    if (inv.getId() != invoiceId_) throw RepairFirmException("Платёж относится к другому счёту");
+    if (inv.isPaid()) throw RepairFirmException("Счёт №" + std::to_string(invoiceId_) + " уже оплачен");
+    if (amount_ < inv.total()) throw InsufficientFundsException("внесено меньше суммы счёта");
     deposited_ = method_.netAmount(inv.total());
     cash.deposit(deposited_, "оплата счёта №" + std::to_string(invoiceId_) + " (" + method_.getType() + ")");
     inv.markPaid();
     processed_ = true;
-    return true;
 }
 
-bool Payment::refund(CashRegister& cash) {
-    if (!processed_ || refunded_) return false;   // TODO(exc): RepairFirmException
-    if (!cash.withdraw(deposited_, "возврат по счёту №" + std::to_string(invoiceId_)))
-        return false;   // TODO(exc): исключение придёт из CashRegister::withdraw
+/** @brief Если withdraw бросит исключение, refunded_ не изменится: платёж останется корректным. */
+void Payment::refund(CashRegister& cash) {
+    if (!processed_) throw RepairFirmException("Платёж ещё не проведён");
+    if (refunded_) throw RepairFirmException("Деньги по платежу уже возвращены");
+    cash.withdraw(deposited_, "возврат по счёту №" + std::to_string(invoiceId_));
     refunded_ = true;
-    return true;
 }
 
 Money Payment::change(const Invoice& inv) const {

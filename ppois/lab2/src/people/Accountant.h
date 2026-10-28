@@ -29,8 +29,8 @@ public:
     Invoice makeInvoice(int invoiceId, const RepairOrder& o, const PriceList& p, const Date& today) const;
     /** @brief Зарплата сотрудника за месяц. Полиморфный вызов: формула зависит от настоящего типа e. */
     Salary makeSalary(const Employee& e, int month) const;
-    /** @brief Вернуть клиенту деньги по платежу; false, если возврат невозможен. */
-    bool refund(Payment& p, CashRegister& cash) const;   // TODO(exc): исключение придёт из Payment::refund
+    /** @brief Вернуть клиенту деньги по платежу; ошибки приходят из Payment::refund. */
+    void refund(Payment& p, CashRegister& cash) const;
 
     const std::string& getCertificate() const;
 

@@ -1,4 +1,5 @@
 #include "inventory/Warehouse.h"
+#include "exceptions/Exceptions.h"
 
 Warehouse::Warehouse(const Address& address) : address_(address) {}
 
@@ -20,15 +21,24 @@ int Warehouse::indexOf(const std::string& article) const {
     return -1;
 }
 
-StockItem& Warehouse::itemAt(int index) { return items_[index]; }
-const StockItem& Warehouse::itemAt(int index) const { return items_[index]; }
-
-bool Warehouse::take(const std::string& article, int qty) {
+StockItem& Warehouse::find(const std::string& article) {
     int i = indexOf(article);
-    if (i == -1) return false;                 // TODO(exc): OutOfStockException(article, qty, 0)
-    if (!items_[i].reserve(qty)) return false; // TODO(exc): исключение придёт из StockItem::reserve
-    items_[i].writeOff(qty);
-    return true;
+    if (i == -1) throw OutOfStockException(article, 1, 0);
+    return items_[i];
+}
+
+const StockItem& Warehouse::find(const std::string& article) const {
+    int i = indexOf(article);
+    if (i == -1) throw OutOfStockException(article, 1, 0);
+    return items_[i];
+}
+
+/** @brief find и reserve бросают до каких-либо изменений, поэтому при ошибке склад не меняется. */
+SparePart Warehouse::take(const std::string& article, int qty) {
+    StockItem& item = find(article);
+    item.reserve(qty);
+    item.writeOff(qty);
+    return item.getPart();
 }
 
 std::vector<StockItem> Warehouse::lowStock() const {

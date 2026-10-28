@@ -28,7 +28,7 @@ int RepairFirm::indexOfEmployeeClient(int id) const {
 }
 
 int RepairFirm::addClient(const std::string& name, const ContactInfo& c, const Date& birth) {
-    if (!c.validate()) return -1;   // TODO(exc): исключение придёт из ContactInfo::validate
+    c.validate();
     int id = newId();
     clients_.push_back(Client(id, name, c, birth, today_));
     return id;
@@ -37,7 +37,7 @@ int RepairFirm::addClient(const std::string& name, const ContactInfo& c, const D
 int RepairFirm::addCorporateClient(const std::string& name, const ContactInfo& c, const Date& birth,
                                    const std::string& company, const std::string& taxId,
                                    const ServiceContract& contract) {
-    if (!c.validate()) return -1;   // TODO(exc): исключение придёт из ContactInfo::validate
+    c.validate();
     CorporateClient cc(0, name, c, birth, today_, company, taxId, contract);
     if (!cc.isTaxIdValid()) return -1;   // TODO(exc): InvalidClientDataException("Неверный УНП")
     int id = newId();
@@ -194,12 +194,11 @@ bool RepairFirm::issuePart(int orderId, int taskId, const std::string& article, 
     if (i == -1 || qty <= 0) return false;   // TODO(exc): OrderNotFoundException(orderId)
     int k = orders_[i].indexOfTask(taskId);
     if (k == -1 || orders_[i].taskAt(k).isDone()) return false;   // TODO(exc): RepairFirmException("Нет такой задачи")
-    int w = warehouse_.indexOf(article);
-    if (w == -1 || warehouse_.itemAt(w).available() < qty) {
+    if (!warehouse_.contains(article) || warehouse_.find(article).available() < qty) {
         orders_[i].setStatus(OrderStatus::WAITING_PARTS);
         return false;   // TODO(exc): OutOfStockException(article, qty, остаток)
     }
-    SparePart part = warehouse_.itemAt(w).getPart();
+    SparePart part = warehouse_.find(article).getPart();
     if (!part.fits(orders_[i].getDevice()))
         return false;   // TODO(exc): IncompatiblePartException(article, модель)
     warehouse_.take(article, qty);
@@ -289,7 +288,7 @@ bool RepairFirm::payInvoice(int invoiceId, const Money& sum, const PaymentMethod
     int i = indexOfInvoice(invoiceId);
     if (i == -1) return false;   // TODO(exc): RepairFirmException("Нет такого счёта")
     Payment p(invoiceId, sum, m, today_);
-    if (!p.process(invoices_[i], cash_)) return false;   // TODO(exc): исключение придёт из Payment::process
+    p.process(invoices_[i], cash_);
     payments_.push_back(p);
     int clientId = invoices_[i].getClientId();
     if (hasClient(clientId)) clientById(clientId).getCard().addPoints(invoices_[i].total());

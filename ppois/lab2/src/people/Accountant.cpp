@@ -37,6 +37,6 @@ Salary Accountant::makeSalary(const Employee& e, int month) const {
     return Salary(e.getId(), month, e.calculateSalary(month));
 }
 
-bool Accountant::refund(Payment& p, CashRegister& cash) const { return p.refund(cash); }
+void Accountant::refund(Payment& p, CashRegister& cash) const { p.refund(cash); }
 
 const std::string& Accountant::getCertificate() const { return certificate_; }

@@ -1,7 +1,13 @@
 #include "core/Date.h"
+#include <sstream>
+#include "exceptions/Exceptions.h"
 
 Date::Date(int d, int m, int y) : day_(d), month_(m), year_(y) {
-    // TODO(exc): InvalidDateException, если !isValid()
+    if (!isValid()) {
+        std::ostringstream out;
+        out << (d < 10 ? "0" : "") << d << "." << (m < 10 ? "0" : "") << m << "." << y;
+        throw InvalidDateException(out.str());
+    }
 }
 
 bool Date::isLeap(int y) {

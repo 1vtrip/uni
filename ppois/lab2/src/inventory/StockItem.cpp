@@ -1,4 +1,5 @@
 #include "inventory/StockItem.h"
+#include "exceptions/Exceptions.h"
 #include <algorithm>
 
 StockItem::StockItem(const SparePart& part, int qty, int minQty)
@@ -6,10 +7,9 @@ StockItem::StockItem(const SparePart& part, int qty, int minQty)
 
 int StockItem::available() const { return qty_ - reserved_; }
 
-bool StockItem::reserve(int qty) {
-    if (qty > available()) return false;   // TODO(exc): OutOfStockException(part_.getArticle(), qty, available())
+void StockItem::reserve(int qty) {
+    if (qty > available()) throw OutOfStockException(part_.getArticle(), qty, available());
     reserved_ += qty;
-    return true;
 }
 
 void StockItem::release(int qty) {

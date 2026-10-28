@@ -9,8 +9,8 @@ public:
 
     /** @brief Сколько можно выдать сейчас: всего минус зарезервировано. */
     int available() const;
-    /** @brief Зарезервировать qty штук под заказ; false, если столько нет. */
-    bool reserve(int qty);    // TODO(exc): OutOfStockException
+    /** @brief Зарезервировать qty штук под заказ; не хватает -> OutOfStockException. */
+    void reserve(int qty);
     /** @brief Снять резерв (не больше, чем зарезервировано). */
     void release(int qty);
     /** @brief Списать зарезервированное: деталь установлена в устройство. */

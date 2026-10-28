@@ -15,8 +15,8 @@ public:
 
     /** @brief Добавить строку; false, если счёт уже оплачен. */
     bool addLine(const InvoiceLine& line);
-    /** @brief Применить скидку (заменяет прежнюю); false, если счёт оплачен или скидка неприменима к сумме. */
-    bool applyDiscount(const Discount& d, const Date& today);   // TODO(exc): InvalidDiscountException
+    /** @brief Применить скидку (заменяет прежнюю). Счёт оплачен -> RepairFirmException, скидка неприменима -> InvalidDiscountException. */
+    void applyDiscount(const Discount& d, const Date& today);
     /** @brief Сумма всех строк без скидки. */
     Money subtotal() const;
     /** @brief Итог к оплате с учётом скидки. */

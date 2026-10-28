@@ -1,4 +1,5 @@
 #include "finance/CashRegister.h"
+#include "exceptions/Exceptions.h"
 #include <sstream>
 
 CashRegister::CashRegister(const Money& initial) : balance_(initial) {}
@@ -11,13 +12,12 @@ void CashRegister::deposit(const Money& sum, const std::string& note) {
     log_.push_back(out.str());
 }
 
-bool CashRegister::withdraw(const Money& sum, const std::string& note) {
-    if (balance_ < sum) return false;   // TODO(exc): InsufficientFundsException("В кассе недостаточно денег: " + note)
+void CashRegister::withdraw(const Money& sum, const std::string& note) {
+    if (balance_ < sum) throw InsufficientFundsException("в кассе недостаточно денег (" + note + ")");
     balance_ -= sum;
     std::ostringstream out;
     out << "- " << sum << " " << note;
     log_.push_back(out.str());
-    return true;
 }
 
 std::string CashRegister::report() const {

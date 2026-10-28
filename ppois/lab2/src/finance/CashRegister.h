@@ -11,8 +11,8 @@ public:
 
     /** @brief Принять деньги в кассу и записать операцию в журнал. */
     void deposit(const Money& sum, const std::string& note);
-    /** @brief Выдать деньги из кассы; false, если в кассе меньше sum. */
-    bool withdraw(const Money& sum, const std::string& note);   // TODO(exc): InsufficientFundsException
+    /** @brief Выдать деньги из кассы; в кассе меньше sum -> InsufficientFundsException. */
+    void withdraw(const Money& sum, const std::string& note);
     /** @brief Отчёт: все записи журнала и текущий остаток одной строкой. */
     std::string report() const;
 

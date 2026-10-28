@@ -18,8 +18,8 @@ public:
 
     /** @brief Возраст в полных годах на дату today. */
     int age(const Date& today) const;
-    /** @brief Заменить контакты; false и старые остаются, если телефон или e-mail неверные. */
-    bool updateContacts(const ContactInfo& contacts);   // TODO(exc): InvalidClientDataException из ContactInfo::validate
+    /** @brief Заменить контакты; неверные -> InvalidClientDataException, старые остаются. */
+    void updateContacts(const ContactInfo& contacts);
 
     int getId() const;
     const std::string& getName() const;

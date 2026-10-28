@@ -1,4 +1,5 @@
 #include "core/ContactInfo.h"
+#include "exceptions/Exceptions.h"
 
 ContactInfo::ContactInfo(const std::string& phone, const std::string& email, const Address& address)
     : phone_(phone), email_(email), address_(address) {}
@@ -37,10 +38,9 @@ bool ContactInfo::isEmailValid() const {
 }
 
 /** @brief Телефон и e-mail проверяются по отдельности, чтобы было видно, что именно неверно. */
-bool ContactInfo::validate() const {
-    if (!isPhoneValid()) return false;   // TODO(exc): InvalidClientDataException("Неверный телефон: " + phone_)
-    if (!isEmailValid()) return false;   // TODO(exc): InvalidClientDataException("Неверный e-mail: " + email_)
-    return true;
+void ContactInfo::validate() const {
+    if (!isPhoneValid()) throw InvalidClientDataException("телефон " + phone_);
+    if (!isEmailValid()) throw InvalidClientDataException("e-mail " + email_);
 }
 
 const std::string& ContactInfo::getPhone() const { return phone_; }

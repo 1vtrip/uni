@@ -1,4 +1,5 @@
 #include "finance/Invoice.h"
+#include "exceptions/Exceptions.h"
 
 Invoice::Invoice(int id, int orderId, int clientId, const Date& date)
     : id_(id), orderId_(orderId), clientId_(clientId), date_(date),
@@ -10,13 +11,11 @@ bool Invoice::addLine(const InvoiceLine& line) {
     return true;
 }
 
-bool Invoice::applyDiscount(const Discount& d, const Date& today) {
-    if (paid_) return false;
-    if (!d.isApplicable(subtotal(), today))
-        return false;   // TODO(exc): InvalidDiscountException(d.getCode())
+void Invoice::applyDiscount(const Discount& d, const Date& today) {
+    if (paid_) throw RepairFirmException("Счёт №" + std::to_string(id_) + " уже оплачен");
+    if (!d.isApplicable(subtotal(), today)) throw InvalidDiscountException(d.getCode());
     discount_ = d;
     hasDiscount_ = true;
-    return true;
 }
 
 Money Invoice::subtotal() const {

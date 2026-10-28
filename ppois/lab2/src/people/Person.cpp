@@ -9,10 +9,9 @@ void Person::print(std::ostream& os) const {
 
 int Person::age(const Date& today) const { return birthDate_.monthsTo(today) / 12; }
 
-bool Person::updateContacts(const ContactInfo& contacts) {
-    if (!contacts.validate()) return false;   // TODO(exc): исключение придёт из ContactInfo::validate
+void Person::updateContacts(const ContactInfo& contacts) {
+    contacts.validate();
     contacts_ = contacts;
-    return true;
 }
 
 int Person::getId() const { return id_; }
