@@ -2,6 +2,7 @@
 #include "people/Technician.h"
 #include "repair/RepairOrder.h"
 #include "finance/Discount.h"
+#include "exceptions/Exceptions.h"
 
 Manager::Manager(int id, const std::string& name, const ContactInfo& contacts, const Date& birth,
                  const Date& hired, const Money& baseSalary, const std::string& department, double bonusPercent)
@@ -21,16 +22,16 @@ Money Manager::calculateSalary(int month) const {
     return base + base.percent(bonusPercent_);
 }
 
-bool Manager::assignTechnician(RepairOrder& o, int taskId, Technician& t) const {
-    int i = o.indexOfTask(taskId);
-    if (i == -1) return false;   // TODO(exc): RepairFirmException("Нет задачи №...")
-    const RepairTask& task = o.taskAt(i);
-    if (task.isDone() || task.isStarted()) return false;   // TODO(exc): RepairFirmException("Задача уже назначена")
-    if (!t.canWorkOn(o.getDevice()) || !t.isAvailable())
-        return false;   // TODO(exc): TechnicianNotAvailableException
+void Manager::assignTechnician(RepairOrder& o, int taskId, Technician& t) const {
+    RepairTask& task = o.findTask(taskId);
+    if (task.isDone() || task.isStarted())
+        throw RepairFirmException("Задача №" + std::to_string(taskId) + " уже назначена или закрыта");
+    if (!t.canWorkOn(o.getDevice()))
+        throw TechnicianNotAvailableException(t.getName() + " не работает с такой техникой");
+    if (!t.isAvailable())
+        throw TechnicianNotAvailableException(t.getName() + " загружен полностью");
     t.takeTask(taskId);
-    o.taskAt(i).start(t.getId());
-    return true;
+    task.start(t.getId());
 }
 
 void Manager::approveDiscount(Discount& d) const { d.approve(); }

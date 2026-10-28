@@ -1,5 +1,6 @@
 #include "repair/RepairOrder.h"
 #include <sstream>
+#include "exceptions/Exceptions.h"
 
 /**
  * @brief Здесь device ещё ссылается на наследника, поэтому виртуальные вызовы дают его версии:
@@ -20,23 +21,20 @@ RepairOrder::RepairOrder(int id, int clientId, const Device& device, const std::
     deviceInfo_ = out.str();
 }
 
-bool RepairOrder::setStatus(int s) {
-    return status_.moveTo(s);   // TODO(exc): исключение придёт из OrderStatus::moveTo
-}
+void RepairOrder::setStatus(OrderStatus::Status s) { status_.moveTo(s); }
 
-bool RepairOrder::setDiagnosis(const Diagnosis& d) {
+/** @brief Сначала заказ отменяется (если ещё можно), потом бросается исключение: заказ не остаётся "висеть". */
+void RepairOrder::setDiagnosis(const Diagnosis& d) {
     diagnosis_ = d;
     if (!diagnosis_.isRepairable()) {
-        cancel();
-        return false;   // TODO(exc): DeviceNotRepairableException(device_.getSerial())
+        if (status_.canMoveTo(OrderStatus::Status::Cancelled)) status_.moveTo(OrderStatus::Status::Cancelled);
+        throw DeviceNotRepairableException(device_.getSerial());
     }
-    return true;
 }
 
-bool RepairOrder::addTask(const RepairTask& t) {
-    if (status_.isFinal()) return false;   // TODO(exc): RepairFirmException("Заказ уже завершён")
+void RepairOrder::addTask(const RepairTask& t) {
+    if (status_.isFinal()) throw RepairFirmException("Заказ №" + std::to_string(id_) + " уже завершён");
     tasks_.push_back(t);
-    return true;
 }
 
 int RepairOrder::indexOfTask(int taskId) const {
@@ -45,8 +43,19 @@ int RepairOrder::indexOfTask(int taskId) const {
     return -1;
 }
 
-RepairTask& RepairOrder::taskAt(int index) { return tasks_[index]; }
-const RepairTask& RepairOrder::taskAt(int index) const { return tasks_[index]; }
+bool RepairOrder::hasTask(int taskId) const { return indexOfTask(taskId) != -1; }
+
+RepairTask& RepairOrder::findTask(int taskId) {
+    int i = indexOfTask(taskId);
+    if (i == -1) throw RepairFirmException("В заказе №" + std::to_string(id_) + " нет задачи №" + std::to_string(taskId));
+    return tasks_[i];
+}
+
+const RepairTask& RepairOrder::findTask(int taskId) const {
+    int i = indexOfTask(taskId);
+    if (i == -1) throw RepairFirmException("В заказе №" + std::to_string(id_) + " нет задачи №" + std::to_string(taskId));
+    return tasks_[i];
+}
 
 bool RepairOrder::allTasksDone() const {
     if (tasks_.empty()) return false;
@@ -67,7 +76,7 @@ bool RepairOrder::isOverdue(const Date& today) const {
 
 int RepairOrder::daysLeft(const Date& today) const { return today.daysTo(deadline_); }
 
-bool RepairOrder::cancel() { return status_.moveTo(OrderStatus::CANCELLED); }
+void RepairOrder::cancel() { status_.moveTo(OrderStatus::Status::Cancelled); }
 
 int RepairOrder::getId() const { return id_; }
 int RepairOrder::getClientId() const { return clientId_; }

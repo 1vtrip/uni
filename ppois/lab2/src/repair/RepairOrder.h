@@ -22,17 +22,17 @@ public:
     RepairOrder(int id, int clientId, const Device& device, const std::string& problem,
                 const Date& created, bool urgent);
 
-    /** @brief Перевести заказ в статус s; false, если переход запрещён. */
-    bool setStatus(int s);   // TODO(exc): InvalidStatusTransitionException
-    /** @brief Сохранить диагноз; если устройство неремонтопригодно, заказ отменяется и возвращается false. */
-    bool setDiagnosis(const Diagnosis& d);   // TODO(exc): DeviceNotRepairableException
-    /** @brief Добавить работу; false, если заказ уже выдан или отменён. */
-    bool addTask(const RepairTask& t);   // TODO(exc): RepairFirmException
-    /** @brief Индекс задачи по id или -1. */
-    int indexOfTask(int taskId) const;   // TODO(exc): вместе с taskAt -> findTask + RepairFirmException
-    /** @brief Задача по индексу из indexOfTask. Ссылку не хранить: после addTask она может устареть. */
-    RepairTask& taskAt(int index);
-    const RepairTask& taskAt(int index) const;
+    /** @brief Перевести заказ в статус s; запрещённый переход -> InvalidStatusTransitionException. */
+    void setStatus(OrderStatus::Status s);
+    /** @brief Сохранить диагноз; если устройство неремонтопригодно, заказ отменяется и бросается DeviceNotRepairableException. */
+    void setDiagnosis(const Diagnosis& d);
+    /** @brief Добавить работу; заказ уже выдан или отменён -> RepairFirmException. */
+    void addTask(const RepairTask& t);
+    /** @brief Есть ли в заказе задача с таким id. */
+    bool hasTask(int taskId) const;
+    /** @brief Задача по id; нет такой -> RepairFirmException. Ссылку не хранить: после addTask она может устареть. */
+    RepairTask& findTask(int taskId);
+    const RepairTask& findTask(int taskId) const;
     /** @brief Все работы выполнены; false, если работ ещё нет. */
     bool allTasksDone() const;
     /** @brief Полная стоимость: диагностика + все работы (с наценкой, если заказ срочный). */
@@ -41,8 +41,8 @@ public:
     bool isOverdue(const Date& today) const;
     /** @brief Сколько дней осталось до срока (отрицательно, если просрочен). */
     int daysLeft(const Date& today) const;
-    /** @brief Отменить заказ; false, если ремонт уже начат или заказ завершён. */
-    bool cancel();
+    /** @brief Отменить заказ; ремонт уже начат или заказ завершён -> InvalidStatusTransitionException. */
+    void cancel();
 
     int getId() const;
     int getClientId() const;
@@ -64,6 +64,9 @@ public:
     void print(std::ostream& os) const override;
 
 private:
+    /** @brief Индекс задачи по id или -1 (внутренний помощник для hasTask и findTask). */
+    int indexOfTask(int taskId) const;
+
     int id_;
     int clientId_;
     Device device_;

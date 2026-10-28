@@ -1,28 +1,26 @@
 #include "repair/WarrantyClaim.h"
+#include "exceptions/Exceptions.h"
 
 WarrantyClaim::WarrantyClaim(const Warranty& warranty, const Date& date, const std::string& description)
     : warranty_(warranty), date_(date), description_(description), status_("Создана") {}
 
-bool WarrantyClaim::submit(const Date& today, const std::string& article) {
-    if (status_ != "Создана") return false;   // TODO(exc): RepairFirmException("Заявка уже подана")
+void WarrantyClaim::submit(const Date& today, const std::string& article) {
+    if (status_ != "Создана") throw RepairFirmException("Заявка уже подана");
     if (!warranty_.isValid(today) || !warranty_.covers(article))
-        return false;   // TODO(exc): WarrantyExpiredException(warranty_.getOrderId())
+        throw WarrantyExpiredException(warranty_.getOrderId());
     article_ = article;
     status_ = "На рассмотрении";
-    return true;
 }
 
-bool WarrantyClaim::approve() {
-    if (status_ != "На рассмотрении") return false;
+void WarrantyClaim::approve() {
+    if (status_ != "На рассмотрении") throw RepairFirmException("Заявка не на рассмотрении, а «" + status_ + "»");
     status_ = "Одобрена";
-    return true;
 }
 
-bool WarrantyClaim::reject(const std::string& reason) {
-    if (status_ != "На рассмотрении") return false;
+void WarrantyClaim::reject(const std::string& reason) {
+    if (status_ != "На рассмотрении") throw RepairFirmException("Заявка не на рассмотрении, а «" + status_ + "»");
     status_ = "Отклонена";
     rejectReason_ = reason;
-    return true;
 }
 
 bool WarrantyClaim::isClosed() const { return status_ == "Одобрена" || status_ == "Отклонена"; }

@@ -1,4 +1,5 @@
 #include "repair/QualityCheck.h"
+#include "exceptions/Exceptions.h"
 
 QualityCheck::QualityCheck(int orderId, int inspectorId)
     : orderId_(orderId), inspectorId_(inspectorId) {}
@@ -8,11 +9,10 @@ void QualityCheck::addItem(const std::string& item) {
     results_.push_back(false);
 }
 
-bool QualityCheck::mark(int index, bool ok) {
+void QualityCheck::mark(int index, bool ok) {
     if (index < 0 || index >= (int)results_.size())
-        return false;   // TODO(exc): RepairFirmException("Нет пункта проверки №...")
+        throw RepairFirmException("Нет пункта проверки №" + std::to_string(index));
     results_[index] = ok;
-    return true;
 }
 
 bool QualityCheck::passed() const {
@@ -22,8 +22,8 @@ bool QualityCheck::passed() const {
     return true;
 }
 
-bool QualityCheck::confirm() const {
-    return passed();   // TODO(exc): if (!passed()) throw QualityCheckFailedException(orderId_)
+void QualityCheck::confirm() const {
+    if (!passed()) throw QualityCheckFailedException(orderId_);
 }
 
 std::vector<std::string> QualityCheck::failedItems() const {

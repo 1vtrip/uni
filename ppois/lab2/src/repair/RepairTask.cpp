@@ -1,5 +1,6 @@
 #include "repair/RepairTask.h"
 #include "devices/Device.h"
+#include "exceptions/Exceptions.h"
 
 RepairTask::RepairTask(int id, const std::string& description)
     : id_(id), description_(description), technicianId_(0), hours_(0), done_(false) {}
@@ -11,20 +12,19 @@ bool RepairTask::start(int technicianId) {
     return true;
 }
 
-bool RepairTask::finish(double hours) {
-    if (!isStarted() || done_ || hours <= 0)
-        return false;   // TODO(exc): RepairFirmException("Задача №... не начата или уже закрыта")
+void RepairTask::finish(double hours) {
+    if (!isStarted()) throw RepairFirmException("Задача №" + std::to_string(id_) + " ещё не начата");
+    if (done_) throw RepairFirmException("Задача №" + std::to_string(id_) + " уже закрыта");
+    if (hours <= 0) throw RepairFirmException("Часы работы должны быть больше нуля");
     hours_ = hours;
     done_ = true;
-    return true;
 }
 
-bool RepairTask::addPart(const SparePart& part, int qty, const Device& d) {
-    if (done_ || qty <= 0) return false;
-    if (!part.fits(d))
-        return false;   // TODO(exc): IncompatiblePartException(part.getArticle(), d.getModel())
+void RepairTask::addPart(const SparePart& part, int qty, const Device& d) {
+    if (done_) throw RepairFirmException("Задача №" + std::to_string(id_) + " уже закрыта");
+    if (qty <= 0) throw RepairFirmException("Количество запчастей должно быть больше нуля");
+    if (!part.fits(d)) throw IncompatiblePartException(part.getArticle(), d.getModel());
     parts_.push_back(UsedPart(part.getArticle(), qty, part.getSellPrice()));
-    return true;
 }
 
 Money RepairTask::partsCost() const {

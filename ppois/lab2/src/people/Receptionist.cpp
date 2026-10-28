@@ -1,6 +1,7 @@
 #include "people/Receptionist.h"
 #include "people/Client.h"
 #include "finance/Invoice.h"
+#include "exceptions/Exceptions.h"
 
 Receptionist::Receptionist(int id, const std::string& name, const ContactInfo& contacts, const Date& birth,
                            const Date& hired, const Money& baseSalary)
@@ -24,10 +25,10 @@ RepairOrder Receptionist::acceptDevice(int orderId, const Client& c, const Devic
     return RepairOrder(orderId, c.getId(), d, problem, today, urgent);
 }
 
-bool Receptionist::issueDevice(RepairOrder& o, const Invoice& inv) const {
-    if (inv.getOrderId() != o.getId() || !inv.isPaid())
-        return false;   // TODO(exc): RepairFirmException("Счёт по заказу не оплачен")
-    return o.setStatus(OrderStatus::ISSUED);   // TODO(exc): исключение придёт из OrderStatus::moveTo
+void Receptionist::issueDevice(RepairOrder& o, const Invoice& inv) const {
+    if (inv.getOrderId() != o.getId()) throw RepairFirmException("Счёт относится к другому заказу");
+    if (!inv.isPaid()) throw RepairFirmException("Счёт по заказу №" + std::to_string(o.getId()) + " не оплачен");
+    o.setStatus(OrderStatus::Status::Issued);
 }
 
 int Receptionist::getAcceptedCount() const { return acceptedCount_; }

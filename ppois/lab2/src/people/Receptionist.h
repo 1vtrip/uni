@@ -25,8 +25,8 @@ public:
      */
     RepairOrder acceptDevice(int orderId, const Client& c, const Device& d, const std::string& problem,
                              const Date& today, bool urgent);
-    /** @brief Выдать устройство; false, если счёт не от этого заказа, не оплачен или заказ ещё не готов. */
-    bool issueDevice(RepairOrder& o, const Invoice& inv) const;   // TODO(exc): RepairFirmException
+    /** @brief Выдать устройство. Счёт не от этого заказа или не оплачен -> RepairFirmException; заказ не готов -> InvalidStatusTransitionException. */
+    void issueDevice(RepairOrder& o, const Invoice& inv) const;
 
     int getAcceptedCount() const;
 

@@ -9,29 +9,28 @@
  */
 class OrderStatus {
 public:
-    // TODO(exc): на этапе «Переход» константы заменятся на enum class Status
-    static const int ACCEPTED = 0, DIAGNOSTICS = 1, WAITING_PARTS = 2, IN_REPAIR = 3,
-                     QUALITY_CHECK = 4, READY = 5, ISSUED = 6, CANCELLED = 7;
+    /** @brief Возможные статусы. enum class: значения не превращаются в int сами и не конфликтуют по именам. */
+    enum class Status { Accepted, Diagnostics, WaitingParts, InRepair, QualityCheck, Ready, Issued, Cancelled };
 
-    explicit OrderStatus(int s = ACCEPTED);
+    explicit OrderStatus(Status s = Status::Accepted);
 
     /** @brief Разрешён ли переход из текущего статуса в next. */
-    bool canMoveTo(int next) const;
-    /** @brief Перейти в next; false и статус не меняется, если переход запрещён. */
-    bool moveTo(int next);   // TODO(exc): InvalidStatusTransitionException
+    bool canMoveTo(Status next) const;
+    /** @brief Перейти в next; запрещённый переход -> InvalidStatusTransitionException, статус не меняется. */
+    void moveTo(Status next);
     /** @brief Финальный статус: Выдан или Отменён, дальше переходов нет. */
     bool isFinal() const;
     /** @brief Название текущего статуса. */
     std::string toString() const;
     /** @brief Название статуса s. */
-    static std::string toString(int s);
+    static std::string toString(Status s);
 
-    int get() const;
+    Status get() const;
 
     bool operator==(const OrderStatus& other) const;
     bool operator!=(const OrderStatus& other) const;
     friend std::ostream& operator<<(std::ostream& os, const OrderStatus& s);
 
 private:
-    int value_;
+    Status value_;
 };

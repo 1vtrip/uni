@@ -22,9 +22,10 @@ public:
 
     /**
      * @brief Назначить мастера на задачу заказа. Сначала все проверки, потом изменения:
-     * задача есть, свободна и не закрыта, мастер умеет работать с устройством и не загружен.
+     * задача есть, свободна и не закрыта (иначе RepairFirmException), мастер умеет работать
+     * с устройством и не загружен (иначе TechnicianNotAvailableException).
      */
-    bool assignTechnician(RepairOrder& o, int taskId, Technician& t) const;   // TODO(exc): TechnicianNotAvailableException
+    void assignTechnician(RepairOrder& o, int taskId, Technician& t) const;
     /** @brief Одобрить скидку. */
     void approveDiscount(Discount& d) const;
     /**

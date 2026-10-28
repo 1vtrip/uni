@@ -17,13 +17,14 @@ public:
 
     /** @brief Мастер берёт задачу; false, если она уже закрыта или её взял другой мастер. */
     bool start(int technicianId);
-    /** @brief Закрыть задачу с фактическими часами; false, если не начата, уже закрыта или hours <= 0. */
-    bool finish(double hours);   // TODO(exc): RepairFirmException
+    /** @brief Закрыть задачу с фактическими часами; не начата, уже закрыта или hours <= 0 -> RepairFirmException. */
+    void finish(double hours);
     /**
      * @brief Записать установленную запчасть по цене продажи на момент установки.
-     * Со склада не списывает (это делает Warehouse::take). false, если задача закрыта или запчасть не подходит.
+     * Со склада не списывает (это делает Warehouse::take). Задача закрыта -> RepairFirmException,
+     * запчасть не подходит -> IncompatiblePartException.
      */
-    bool addPart(const SparePart& part, int qty, const Device& d);   // TODO(exc): IncompatiblePartException
+    void addPart(const SparePart& part, int qty, const Device& d);
     /** @brief Стоимость установленных запчастей. */
     Money partsCost() const;
     /** @brief Полная стоимость: работа по фактическим часам (с наценкой при срочности) + запчасти. */

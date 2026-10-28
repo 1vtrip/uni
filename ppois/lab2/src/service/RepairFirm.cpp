@@ -2,6 +2,9 @@
 #include "repair/Diagnosis.h"
 #include "repair/QualityCheck.h"
 #include "service/ReportGenerator.h"
+#include "exceptions/Exceptions.h"
+
+using S = OrderStatus::Status;
 
 RepairFirm::RepairFirm(const std::string& name, const Warehouse& w, const PriceList& p,
                        const Workshop& ws, const Date& today)
@@ -148,22 +151,31 @@ int RepairFirm::createOrder(int clientId, const Device& d, const std::string& pr
     return id;
 }
 
-/** @brief quickTest вызывается виртуально у d, а не у срезанной копии в заказе. При неремонтопригодности setDiagnosis отменяет заказ. */
+/**
+ * @brief quickTest вызывается виртуально у d, а не у срезанной копии в заказе.
+ * При неремонтопригодности setDiagnosis отменяет заказ и бросает исключение: оно ловится,
+ * клиенту уходит уведомление об отмене, и исключение пробрасывается дальше (throw;).
+ */
 bool RepairFirm::runDiagnosis(int orderId, const Device& d) {
     int i = indexOfOrder(orderId);
     if (i == -1) return false;   // TODO(exc): OrderNotFoundException(orderId)
     if (orders_[i].getDevice().getSerial() != d.getSerial()) return false;   // TODO(exc): RepairFirmException("Чужое устройство")
-    if (!orders_[i].getStatus().canMoveTo(OrderStatus::DIAGNOSTICS))
+    if (!orders_[i].getStatus().canMoveTo(S::Diagnostics))
         return false;   // TODO(exc): InvalidStatusTransitionException
     int t = freeTechnicianIndex(d);
     if (t == -1) return false;   // TODO(exc): TechnicianNotAvailableException
-    orders_[i].setStatus(OrderStatus::DIAGNOSTICS);
+    orders_[i].setStatus(S::Diagnostics);
     Diagnosis diag(technicians_[t].getId(), today_);
     diag.addDefects(d.quickTest(today_));
     diag.decideRepairable();
-    bool ok = orders_[i].setDiagnosis(diag);
+    try {
+        orders_[i].setDiagnosis(diag);
+    } catch (const DeviceNotRepairableException&) {
+        notifyStatus(i);
+        throw;
+    }
     notifyStatus(i);
-    return ok;   // TODO(exc): DeviceNotRepairableException придёт из setDiagnosis
+    return true;
 }
 
 /** @brief Все проверки до изменений: после них assignTechnician гарантированно проходит. */
@@ -171,7 +183,7 @@ int RepairFirm::addTask(int orderId, const std::string& description) {
     int i = indexOfOrder(orderId);
     if (i == -1) return -1;   // TODO(exc): OrderNotFoundException(orderId)
     const OrderStatus& st = orders_[i].getStatus();
-    if (st.get() != OrderStatus::IN_REPAIR && !st.canMoveTo(OrderStatus::IN_REPAIR))
+    if (st.get() != S::InRepair && !st.canMoveTo(S::InRepair))
         return -1;   // TODO(exc): InvalidStatusTransitionException
     if (!orders_[i].getDiagnosis().isDone()) return -1;   // TODO(exc): RepairFirmException("Нет диагностики")
     if (managers_.empty()) return -1;   // TODO(exc): RepairFirmException("Нет менеджера")
@@ -181,8 +193,8 @@ int RepairFirm::addTask(int orderId, const std::string& description) {
     orders_[i].addTask(RepairTask(taskId, description));
     managers_[0].assignTechnician(orders_[i], taskId, technicians_[t]);
     workshop_.assignBench(technicians_[t].getId());
-    if (st.get() != OrderStatus::IN_REPAIR) {
-        orders_[i].setStatus(OrderStatus::IN_REPAIR);
+    if (st.get() != S::InRepair) {
+        orders_[i].setStatus(S::InRepair);
         notifyStatus(i);
     }
     return taskId;
@@ -192,42 +204,43 @@ int RepairFirm::addTask(int orderId, const std::string& description) {
 bool RepairFirm::issuePart(int orderId, int taskId, const std::string& article, int qty) {
     int i = indexOfOrder(orderId);
     if (i == -1 || qty <= 0) return false;   // TODO(exc): OrderNotFoundException(orderId)
-    int k = orders_[i].indexOfTask(taskId);
-    if (k == -1 || orders_[i].taskAt(k).isDone()) return false;   // TODO(exc): RepairFirmException("Нет такой задачи")
+    if (!orders_[i].hasTask(taskId) || orders_[i].findTask(taskId).isDone()) return false;   // TODO(exc): RepairFirmException("Нет такой задачи")
     if (!warehouse_.contains(article) || warehouse_.find(article).available() < qty) {
-        orders_[i].setStatus(OrderStatus::WAITING_PARTS);
+        if (orders_[i].getStatus().canMoveTo(S::WaitingParts)) orders_[i].setStatus(S::WaitingParts);
         return false;   // TODO(exc): OutOfStockException(article, qty, остаток)
     }
     SparePart part = warehouse_.find(article).getPart();
     if (!part.fits(orders_[i].getDevice()))
         return false;   // TODO(exc): IncompatiblePartException(article, модель)
     warehouse_.take(article, qty);
-    orders_[i].taskAt(k).addPart(part, qty, orders_[i].getDevice());
+    orders_[i].findTask(taskId).addPart(part, qty, orders_[i].getDevice());
     return true;
 }
 
 bool RepairFirm::finishTask(int orderId, int taskId, double hours) {
     int i = indexOfOrder(orderId);
     if (i == -1) return false;   // TODO(exc): OrderNotFoundException(orderId)
-    int k = orders_[i].indexOfTask(taskId);
-    if (k == -1) return false;   // TODO(exc): RepairFirmException("Нет такой задачи")
-    int techId = orders_[i].taskAt(k).getTechnicianId();
-    if (!orders_[i].taskAt(k).finish(hours)) return false;   // TODO(exc): исключение придёт из RepairTask::finish
+    RepairTask& task = orders_[i].findTask(taskId);
+    int techId = task.getTechnicianId();
+    task.finish(hours);
     int t = indexOfTechnician(techId);
     if (t != -1) {
         technicians_[t].finishTask(taskId);
         if (technicians_[t].getActiveTaskIds().empty())
             workshop_.releaseBench(workshop_.benchOf(techId));
     }
-    if (orders_[i].allTasksDone() && orders_[i].setStatus(OrderStatus::QUALITY_CHECK))
+    if (orders_[i].allTasksDone() && orders_[i].getStatus().canMoveTo(S::QualityCheck)) {
+        orders_[i].setStatus(S::QualityCheck);
         notifyStatus(i);
+    }
     return true;
 }
 
+/** @brief При провале confirm() бросает исключение: заказ возвращается в ремонт, клиент уведомлён, исключение уходит дальше. */
 bool RepairFirm::qualityCheck(int orderId, bool ok) {
     int i = indexOfOrder(orderId);
     if (i == -1) return false;   // TODO(exc): OrderNotFoundException(orderId)
-    if (orders_[i].getStatus().get() != OrderStatus::QUALITY_CHECK)
+    if (orders_[i].getStatus().get() != S::QualityCheck)
         return false;   // TODO(exc): InvalidStatusTransitionException
     QualityCheck qc(orderId, managers_.empty() ? 0 : managers_[0].getId());
     qc.addItem("Устройство включается");
@@ -236,12 +249,14 @@ bool RepairFirm::qualityCheck(int orderId, bool ok) {
     qc.mark(0, true);
     qc.mark(1, ok);
     qc.mark(2, true);
-    if (!qc.confirm()) {
-        orders_[i].setStatus(OrderStatus::IN_REPAIR);
+    try {
+        qc.confirm();
+    } catch (const QualityCheckFailedException&) {
+        orders_[i].setStatus(S::InRepair);
         notifyStatus(i);
-        return false;   // TODO(exc): QualityCheckFailedException(orderId)
+        throw;
     }
-    orders_[i].setStatus(OrderStatus::READY);
+    orders_[i].setStatus(S::Ready);
     const RepairOrder& o = orders_[i];
     if (hasClient(o.getClientId())) notifier_.readyForPickup(o, clientById(o.getClientId()), today_);
     return true;
@@ -270,7 +285,7 @@ int RepairFirm::indexOfInvoiceForOrder(int orderId) const {
 int RepairFirm::billOrder(int orderId) {
     int i = indexOfOrder(orderId);
     if (i == -1) return -1;   // TODO(exc): OrderNotFoundException(orderId)
-    if (orders_[i].getStatus().get() != OrderStatus::READY)
+    if (orders_[i].getStatus().get() != S::Ready)
         return -1;   // TODO(exc): RepairFirmException("Заказ ещё не готов")
     if (indexOfInvoiceForOrder(orderId) != -1) return -1;   // TODO(exc): RepairFirmException("Счёт уже выставлен")
     if (accountants_.empty() || !hasClient(orders_[i].getClientId()))
@@ -300,8 +315,7 @@ bool RepairFirm::issueToClient(int orderId) {
     if (i == -1) return false;   // TODO(exc): OrderNotFoundException(orderId)
     int inv = indexOfInvoiceForOrder(orderId);
     if (inv == -1 || receptionists_.empty()) return false;   // TODO(exc): RepairFirmException("Нет счёта")
-    if (!receptionists_[0].issueDevice(orders_[i], invoices_[inv]))
-        return false;   // TODO(exc): исключение придёт из Receptionist::issueDevice
+    receptionists_[0].issueDevice(orders_[i], invoices_[inv]);
     Warranty w(orderId, today_, 3);
     const std::vector<RepairTask>& tasks = orders_[i].getTasks();
     for (size_t k = 0; k < tasks.size(); ++k) {
@@ -372,15 +386,17 @@ bool RepairFirm::receivePurchase(PurchaseOrder& po) {
     if (po.isReceived()) return false;
     po.receive(warehouse_, 2);
     for (size_t i = 0; i < orders_.size(); ++i)
-        if (orders_[i].getStatus().get() == OrderStatus::WAITING_PARTS && orders_[i].setStatus(OrderStatus::IN_REPAIR))
+        if (orders_[i].getStatus().get() == S::WaitingParts) {
+            orders_[i].setStatus(S::InRepair);
             notifyStatus((int)i);
+        }
     return true;
 }
 
 bool RepairFirm::addReview(int clientId, int orderId, int rating, const std::string& text) {
     int i = indexOfOrder(orderId);
     if (i == -1 || orders_[i].getClientId() != clientId) return false;   // TODO(exc): OrderNotFoundException(orderId)
-    if (orders_[i].getStatus().get() != OrderStatus::ISSUED) return false;   // TODO(exc): RepairFirmException("Заказ не выдан")
+    if (orders_[i].getStatus().get() != S::Issued) return false;   // TODO(exc): RepairFirmException("Заказ не выдан")
     Review r(clientId, orderId, rating, text);
     if (!r.validate()) return false;   // TODO(exc): исключение придёт из Review::validate
     for (size_t k = 0; k < reviews_.size(); ++k)

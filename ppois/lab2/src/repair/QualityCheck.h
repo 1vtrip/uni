@@ -10,12 +10,12 @@ public:
 
     /** @brief Добавить пункт проверки; сначала он считается не пройденным. */
     void addItem(const std::string& item);
-    /** @brief Отметить пункт index; false, если такого пункта нет. */
-    bool mark(int index, bool ok);   // TODO(exc): RepairFirmException
+    /** @brief Отметить пункт index; нет такого пункта -> RepairFirmException. */
+    void mark(int index, bool ok);
     /** @brief Пройдена: пункты есть и все отмечены как пройденные. */
     bool passed() const;
-    /** @brief Подтвердить проверку перед выдачей; false, если она не пройдена. */
-    bool confirm() const;   // TODO(exc): QualityCheckFailedException, метод станет void
+    /** @brief Потребовать, чтобы проверка была пройдена: иначе QualityCheckFailedException. passed() спрашивает, confirm() требует. */
+    void confirm() const;
     /** @brief Названия не пройденных пунктов: что нужно переделать. */
     std::vector<std::string> failedItems() const;
 

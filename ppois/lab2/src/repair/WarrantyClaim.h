@@ -11,13 +11,13 @@ public:
 
     /**
      * @brief Подать заявку по запчасти article: из "Создана" в "На рассмотрении".
-     * false, если заявка уже подана, гарантия не действует или запчасть не покрыта.
+     * Заявка уже подана -> RepairFirmException; гарантия не действует или запчасть не покрыта -> WarrantyExpiredException.
      */
-    bool submit(const Date& today, const std::string& article);   // TODO(exc): WarrantyExpiredException
-    /** @brief Одобрить; false, если заявка не на рассмотрении. */
-    bool approve();   // TODO(exc): RepairFirmException
-    /** @brief Отклонить с причиной; false, если заявка не на рассмотрении. */
-    bool reject(const std::string& reason);   // TODO(exc): RepairFirmException
+    void submit(const Date& today, const std::string& article);
+    /** @brief Одобрить; заявка не на рассмотрении -> RepairFirmException. */
+    void approve();
+    /** @brief Отклонить с причиной; заявка не на рассмотрении -> RepairFirmException. */
+    void reject(const std::string& reason);
     /** @brief Рассмотрение закончено: заявка одобрена или отклонена. */
     bool isClosed() const;
 
