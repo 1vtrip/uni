@@ -1,15 +1,16 @@
 #include "workshop/Tool.h"
+#include "exceptions/Exceptions.h"
 
 Tool::Tool(const std::string& invNumber, const std::string& name, const Date& calibrated)
     : invNumber_(invNumber), name_(name), calibrated_(calibrated), holderId_(0) {}
 
 bool Tool::isAvailable() const { return holderId_ == 0; }
 
-bool Tool::take(int techId) {
-    if (!isAvailable() || techId <= 0)
-        return false;   // TODO(exc): WorkbenchOccupiedException("Инструмент " + invNumber_)
+void Tool::take(int techId) {
+    if (techId <= 0) throw WorkbenchOccupiedException("инструмент " + name_ + " нельзя выдать без мастера");
+    if (!isAvailable())
+        throw WorkbenchOccupiedException("инструмент " + name_ + " (у мастера #" + std::to_string(holderId_) + ")");
     holderId_ = techId;
-    return true;
 }
 
 void Tool::giveBack() { holderId_ = 0; }

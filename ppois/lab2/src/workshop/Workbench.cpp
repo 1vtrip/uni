@@ -1,15 +1,16 @@
 #include "workshop/Workbench.h"
+#include "exceptions/Exceptions.h"
 
 Workbench::Workbench(int number, const std::string& equipment)
     : number_(number), equipment_(equipment), technicianId_(0) {}
 
 bool Workbench::isFree() const { return technicianId_ == 0; }
 
-bool Workbench::occupy(int techId) {
-    if (!isFree() || techId <= 0)
-        return false;   // TODO(exc): WorkbenchOccupiedException("Место №" + номер)
+void Workbench::occupy(int techId) {
+    if (techId <= 0) throw WorkbenchOccupiedException("место №" + std::to_string(number_) + " нельзя занять без мастера");
+    if (!isFree())
+        throw WorkbenchOccupiedException("место №" + std::to_string(number_) + " (мастер #" + std::to_string(technicianId_) + ")");
     technicianId_ = techId;
-    return true;
 }
 
 void Workbench::release() { technicianId_ = 0; }

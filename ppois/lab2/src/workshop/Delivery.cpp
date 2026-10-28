@@ -1,5 +1,6 @@
 #include "workshop/Delivery.h"
 #include "people/Courier.h"
+#include "exceptions/Exceptions.h"
 
 Delivery::Delivery(int id, int orderId, const Address& from, const Address& to)
     : id_(id), orderId_(orderId), from_(from), to_(to), courierId_(0), done_(false) {}
@@ -16,10 +17,10 @@ Money Delivery::cost() const {
     return Money::fromRubles(from_.sameCity(to_) ? 10 : 40);
 }
 
-bool Delivery::complete() {
-    if (!isAssigned() || done_) return false;   // TODO(exc): RepairFirmException("Курьер не назначен")
+void Delivery::complete() {
+    if (!isAssigned()) throw RepairFirmException("Доставке №" + std::to_string(id_) + " не назначен курьер");
+    if (done_) throw RepairFirmException("Доставка №" + std::to_string(id_) + " уже выполнена");
     done_ = true;
-    return true;
 }
 
 int Delivery::getId() const { return id_; }

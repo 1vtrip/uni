@@ -11,8 +11,8 @@ public:
 
     /** @brief Пересекается ли смена s хотя бы с одной сменой графика. */
     bool hasConflict(const Shift& s) const;
-    /** @brief Добавить смену; false, если она некорректна или пересекается с другой. */
-    bool add(const Shift& s);   // TODO(exc): ScheduleConflictException
+    /** @brief Добавить смену; некорректна или пересекается с другой -> ScheduleConflictException. */
+    void add(const Shift& s);
     /** @brief Сколько всего часов во всех сменах. */
     int totalHours() const;
     /** @brief Сколько смен в день d. */

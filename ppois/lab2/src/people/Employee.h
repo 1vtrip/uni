@@ -28,8 +28,8 @@ public:
 
     /** @brief Стаж в полных годах на дату today. */
     int experienceYears(const Date& today) const;
-    /** @brief Добавить смену в график; false, если она некорректна или пересекается с другой. */
-    bool addShift(const Shift& s);   // TODO(exc): исключение придёт из Schedule::add
+    /** @brief Добавить смену в график; ошибки (ScheduleConflictException) приходят из Schedule::add. */
+    void addShift(const Shift& s);
     /** @brief Сколько всего часов в графике. */
     int hoursWorked() const;
 

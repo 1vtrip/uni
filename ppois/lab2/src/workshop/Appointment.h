@@ -18,9 +18,9 @@ public:
     void cancel();
     /**
      * @brief Перенести на другую дату и час; подтверждение сбрасывается.
-     * false, если запись отменена или час нерабочий.
+     * Запись отменена -> RepairFirmException; час нерабочий -> ScheduleConflictException.
      */
-    bool reschedule(const Date& date, int hour);   // TODO(exc): RepairFirmException / ScheduleConflictException
+    void reschedule(const Date& date, int hour);
     /** @brief Конфликт: те же дата и час, и обе записи не отменены. */
     bool conflictsWith(const Appointment& other) const;
 

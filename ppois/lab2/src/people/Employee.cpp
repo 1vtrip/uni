@@ -20,7 +20,7 @@ void Employee::printEmployeePart(std::ostream& os) const {
 
 int Employee::experienceYears(const Date& today) const { return hired_.monthsTo(today) / 12; }
 
-bool Employee::addShift(const Shift& s) { return schedule_.add(s); }
+void Employee::addShift(const Shift& s) { schedule_.add(s); }
 
 int Employee::hoursWorked() const { return schedule_.totalHours(); }
 

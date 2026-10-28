@@ -11,8 +11,8 @@ public:
 
     /** @brief Свободен ли инструмент. */
     bool isAvailable() const;
-    /** @brief Взять инструмент мастером techId; false, если его уже кто-то взял. */
-    bool take(int techId);   // TODO(exc): WorkbenchOccupiedException
+    /** @brief Взять инструмент мастером techId; уже взят или techId <= 0 -> WorkbenchOccupiedException. */
+    void take(int techId);
     /** @brief Вернуть инструмент на место. */
     void giveBack();
     /** @brief Нужна ли калибровка: с прошлой прошло больше 180 дней. */

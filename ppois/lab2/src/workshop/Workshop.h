@@ -20,18 +20,16 @@ public:
     int benchOf(int techId) const;
     /**
      * @brief Дать мастеру первое свободное место и вернуть его номер.
-     * Если мастер уже на месте, возвращается номер этого места. -1, если свободных нет.
+     * Если мастер уже на месте, возвращается номер этого места. Свободных нет -> WorkbenchOccupiedException.
      */
-    int assignBench(int techId);   // TODO(exc): WorkbenchOccupiedException
+    int assignBench(int techId);
     /** @brief Освободить место по номеру; false, если такого места нет. */
     bool releaseBench(int number);
     /** @brief Сколько мест сейчас свободно. */
     int freeBenches() const;
-    /** @brief Индекс инструмента по названию или -1. */
-    int indexOfTool(const std::string& name) const;   // TODO(exc): вместе с toolAt -> findTool + RepairFirmException
-    /** @brief Инструмент по индексу из indexOfTool. Ссылку не хранить: после addTool она может устареть. */
-    Tool& toolAt(int index);
-    const Tool& toolAt(int index) const;
+    /** @brief Инструмент по названию; нет такого -> RepairFirmException. Ссылку не хранить: после addTool она может устареть. */
+    Tool& findTool(const std::string& name);
+    const Tool& findTool(const std::string& name) const;
     /** @brief Инструменты, которым нужна калибровка на дату today. */
     std::vector<Tool> toolsToCalibrate(const Date& today) const;
 
@@ -43,6 +41,9 @@ public:
     friend std::ostream& operator<<(std::ostream& os, const Workshop& w);
 
 private:
+    /** @brief Индекс инструмента по названию или -1 (внутренний помощник для findTool). */
+    int indexOfTool(const std::string& name) const;
+
     std::string name_;
     Address address_;
     std::vector<Workbench> benches_;

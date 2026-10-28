@@ -1,4 +1,6 @@
 #include "workshop/Appointment.h"
+#include <sstream>
+#include "exceptions/Exceptions.h"
 
 Appointment::Appointment(int id, int clientId, const Date& date, int hour, const std::string& purpose)
     : id_(id), clientId_(clientId), date_(date), hour_(hour), purpose_(purpose),
@@ -19,14 +21,16 @@ void Appointment::cancel() {
     confirmed_ = false;
 }
 
-bool Appointment::reschedule(const Date& date, int hour) {
-    if (cancelled_) return false;   // TODO(exc): RepairFirmException("Запись отменена")
-    if (!isWorkingHour(hour) || !date.isValid())
-        return false;   // TODO(exc): ScheduleConflictException(дата и час)
+void Appointment::reschedule(const Date& date, int hour) {
+    if (cancelled_) throw RepairFirmException("Запись №" + std::to_string(id_) + " отменена");
+    if (!isWorkingHour(hour)) {
+        std::ostringstream what;
+        what << date << " в " << hour << ":00 — нерабочее время";
+        throw ScheduleConflictException(what.str());
+    }
     date_ = date;
     hour_ = hour;
     confirmed_ = false;
-    return true;
 }
 
 bool Appointment::conflictsWith(const Appointment& other) const {

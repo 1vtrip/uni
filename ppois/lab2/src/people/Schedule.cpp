@@ -1,4 +1,6 @@
 #include "people/Schedule.h"
+#include <sstream>
+#include "exceptions/Exceptions.h"
 
 Schedule::Schedule() {}
 
@@ -8,11 +10,12 @@ bool Schedule::hasConflict(const Shift& s) const {
     return false;
 }
 
-bool Schedule::add(const Shift& s) {
-    if (!s.isValid()) return false;
-    if (hasConflict(s)) return false;   // TODO(exc): ScheduleConflictException(дата смены)
+void Schedule::add(const Shift& s) {
+    std::ostringstream what;
+    what << "смена " << s;
+    if (!s.isValid()) throw ScheduleConflictException(what.str() + " — некорректные часы");
+    if (hasConflict(s)) throw ScheduleConflictException(what.str() + " пересекается с другой");
     shifts_.push_back(s);
-    return true;
 }
 
 int Schedule::totalHours() const {

@@ -20,8 +20,8 @@ public:
     bool isAssigned() const;
     /** @brief Стоимость: в одном городе 10 руб., между городами 40 руб. */
     Money cost() const;
-    /** @brief Отметить доставку выполненной; false, если курьер не назначен или уже выполнено. */
-    bool complete();   // TODO(exc): RepairFirmException
+    /** @brief Отметить доставку выполненной; курьер не назначен или уже выполнено -> RepairFirmException. */
+    void complete();
 
     int getId() const;
     int getOrderId() const;

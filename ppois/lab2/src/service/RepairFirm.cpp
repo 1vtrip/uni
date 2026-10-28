@@ -178,7 +178,10 @@ bool RepairFirm::runDiagnosis(int orderId, const Device& d) {
     return true;
 }
 
-/** @brief Все проверки до изменений: после них assignTechnician гарантированно проходит. */
+/**
+ * @brief Все проверки до изменений: после них assignTechnician гарантированно проходит.
+ * Место в мастерской необязательно: занимается, только если есть свободное.
+ */
 int RepairFirm::addTask(int orderId, const std::string& description) {
     int i = indexOfOrder(orderId);
     if (i == -1) return -1;   // TODO(exc): OrderNotFoundException(orderId)
@@ -192,7 +195,8 @@ int RepairFirm::addTask(int orderId, const std::string& description) {
     int taskId = newId();
     orders_[i].addTask(RepairTask(taskId, description));
     managers_[0].assignTechnician(orders_[i], taskId, technicians_[t]);
-    workshop_.assignBench(technicians_[t].getId());
+    if (workshop_.freeBenches() > 0 || workshop_.benchOf(technicians_[t].getId()) != -1)
+        workshop_.assignBench(technicians_[t].getId());
     if (st.get() != S::InRepair) {
         orders_[i].setStatus(S::InRepair);
         notifyStatus(i);
@@ -373,7 +377,7 @@ int RepairFirm::arrangeDelivery(int orderId, const Address& to) {
 bool RepairFirm::completeDelivery(int deliveryId) {
     for (size_t i = 0; i < deliveries_.size(); ++i) {
         if (deliveries_[i].getId() != deliveryId) continue;
-        if (!deliveries_[i].complete()) return false;   // TODO(exc): исключение придёт из Delivery::complete
+        deliveries_[i].complete();
         for (size_t c = 0; c < couriers_.size(); ++c)
             if (couriers_[c].getId() == deliveries_[i].getCourierId()) couriers_[c].deliver(deliveryId);
         return true;

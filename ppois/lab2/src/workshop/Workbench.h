@@ -9,8 +9,8 @@ public:
 
     /** @brief Свободно ли место. */
     bool isFree() const;
-    /** @brief Занять место мастером techId; false, если место уже занято. */
-    bool occupy(int techId);   // TODO(exc): WorkbenchOccupiedException
+    /** @brief Занять место мастером techId; место занято или techId <= 0 -> WorkbenchOccupiedException. */
+    void occupy(int techId);
     /** @brief Освободить место. */
     void release();
 

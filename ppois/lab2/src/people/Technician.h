@@ -20,10 +20,10 @@ public:
 
     /** @brief Добавить специализацию (без повторов). */
     void addSpecialization(const Specialization& s);
-    /** @brief Взять задачу; false, если мастер загружен полностью или задача уже у него. */
-    bool takeTask(int taskId);   // TODO(exc): TechnicianNotAvailableException
-    /** @brief Закрыть задачу; каждые 20 закрытых задач — новый уровень. false, если такой задачи нет. */
-    bool finishTask(int taskId);   // TODO(exc): RepairFirmException
+    /** @brief Взять задачу. Загружен полностью -> TechnicianNotAvailableException; задача уже у него -> RepairFirmException. */
+    void takeTask(int taskId);
+    /** @brief Закрыть задачу; каждые 20 закрытых задач — новый уровень. Нет такой задачи -> RepairFirmException. */
+    void finishTask(int taskId);
     /** @brief Может ли взять ещё задачу. */
     bool isAvailable() const;
     /** @brief Загрузка от 0 до 1: активные задачи / максимум. */

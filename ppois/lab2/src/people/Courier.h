@@ -20,8 +20,8 @@ public:
 
     /** @brief Забрать доставку; false, если она уже у курьера. */
     bool pickUp(int deliveryId);
-    /** @brief Доставить; false, если такой доставки у курьера нет. */
-    bool deliver(int deliveryId);   // TODO(exc): RepairFirmException
+    /** @brief Доставить; такой доставки у курьера нет -> RepairFirmException. */
+    void deliver(int deliveryId);
     /** @brief Сколько доставок сейчас в пути. */
     int inTransit() const;
 

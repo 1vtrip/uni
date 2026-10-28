@@ -1,4 +1,5 @@
 #include "workshop/Workshop.h"
+#include "exceptions/Exceptions.h"
 
 Workshop::Workshop(const std::string& name, const Address& address) : name_(name), address_(address) {}
 
@@ -25,12 +26,16 @@ int Workshop::benchOf(int techId) const {
 
 /** @brief Место занимается прямо в benches_[i]: у копии изменение бы потерялось. */
 int Workshop::assignBench(int techId) {
-    if (techId <= 0) return -1;
+    if (techId <= 0) throw WorkbenchOccupiedException("место нельзя занять без мастера");
     int current = benchOf(techId);
     if (current != -1) return current;
-    for (size_t i = 0; i < benches_.size(); ++i)
-        if (benches_[i].occupy(techId)) return benches_[i].getNumber();
-    return -1;   // TODO(exc): WorkbenchOccupiedException("свободных мест нет")
+    for (size_t i = 0; i < benches_.size(); ++i) {
+        if (benches_[i].isFree()) {
+            benches_[i].occupy(techId);
+            return benches_[i].getNumber();
+        }
+    }
+    throw WorkbenchOccupiedException("в мастерской «" + name_ + "» нет свободных мест");
 }
 
 bool Workshop::releaseBench(int number) {
@@ -56,8 +61,17 @@ int Workshop::indexOfTool(const std::string& name) const {
     return -1;
 }
 
-Tool& Workshop::toolAt(int index) { return tools_[index]; }
-const Tool& Workshop::toolAt(int index) const { return tools_[index]; }
+Tool& Workshop::findTool(const std::string& name) {
+    int i = indexOfTool(name);
+    if (i == -1) throw RepairFirmException("Инструмента «" + name + "» нет в мастерской");
+    return tools_[i];
+}
+
+const Tool& Workshop::findTool(const std::string& name) const {
+    int i = indexOfTool(name);
+    if (i == -1) throw RepairFirmException("Инструмента «" + name + "» нет в мастерской");
+    return tools_[i];
+}
 
 std::vector<Tool> Workshop::toolsToCalibrate(const Date& today) const {
     std::vector<Tool> result;

@@ -1,4 +1,5 @@
 #include "people/Courier.h"
+#include "exceptions/Exceptions.h"
 
 Courier::Courier(int id, const std::string& name, const ContactInfo& contacts, const Date& birth,
                  const Date& hired, const Money& baseSalary, const std::string& carNumber)
@@ -24,15 +25,15 @@ bool Courier::pickUp(int deliveryId) {
     return true;
 }
 
-bool Courier::deliver(int deliveryId) {
+void Courier::deliver(int deliveryId) {
     for (size_t i = 0; i < deliveryIds_.size(); ++i) {
         if (deliveryIds_[i] == deliveryId) {
             deliveryIds_.erase(deliveryIds_.begin() + i);
             ++deliveredCount_;
-            return true;
+            return;
         }
     }
-    return false;   // TODO(exc): RepairFirmException("У курьера нет доставки №...")
+    throw RepairFirmException("У курьера " + name_ + " нет доставки №" + std::to_string(deliveryId));
 }
 
 int Courier::inTransit() const { return (int)deliveryIds_.size(); }

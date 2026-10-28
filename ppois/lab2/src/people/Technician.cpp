@@ -1,5 +1,6 @@
 #include "people/Technician.h"
 #include "devices/Device.h"
+#include "exceptions/Exceptions.h"
 
 Technician::Technician(int id, const std::string& name, const ContactInfo& contacts, const Date& birth,
                        const Date& hired, const Money& baseSalary, int level, int maxTasks)
@@ -32,25 +33,24 @@ void Technician::addSpecialization(const Specialization& s) {
     specs_.push_back(s);
 }
 
-bool Technician::takeTask(int taskId) {
-    if (!isAvailable())
-        return false;   // TODO(exc): TechnicianNotAvailableException(name_ + " загружен полностью")
+void Technician::takeTask(int taskId) {
+    if (!isAvailable()) throw TechnicianNotAvailableException(name_ + " загружен полностью");
     for (size_t i = 0; i < activeTaskIds_.size(); ++i)
-        if (activeTaskIds_[i] == taskId) return false;
+        if (activeTaskIds_[i] == taskId)
+            throw RepairFirmException("Задача №" + std::to_string(taskId) + " уже у мастера " + name_);
     activeTaskIds_.push_back(taskId);
-    return true;
 }
 
-bool Technician::finishTask(int taskId) {
+void Technician::finishTask(int taskId) {
     for (size_t i = 0; i < activeTaskIds_.size(); ++i) {
         if (activeTaskIds_[i] == taskId) {
             activeTaskIds_.erase(activeTaskIds_.begin() + i);
             ++completedTasks_;
             if (completedTasks_ % 20 == 0) upgradeLevel();
-            return true;
+            return;
         }
     }
-    return false;   // TODO(exc): RepairFirmException("У мастера нет задачи №...")
+    throw RepairFirmException("У мастера " + name_ + " нет задачи №" + std::to_string(taskId));
 }
 
 bool Technician::isAvailable() const { return (int)activeTaskIds_.size() < maxTasks_; }
