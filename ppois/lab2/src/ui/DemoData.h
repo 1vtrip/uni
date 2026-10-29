@@ -7,3 +7,8 @@
  * «Сегодня» в демо — 27.10.2026.
  */
 RepairFirm createDemoFirm();
+
+/** @brief Категории техники демо-фирмы. Меню создаёт устройства с ними, чтобы совпадали со специализациями мастеров. */
+DeviceCategory phoneCategory();
+DeviceCategory laptopCategory();
+DeviceCategory applianceCategory();

@@ -11,13 +11,18 @@ static std::vector<std::string> models(const std::string& a, const std::string& 
     return list;
 }
 
+DeviceCategory phoneCategory() { return DeviceCategory("Смартфоны", Money::fromRubles(15), 3); }
+DeviceCategory laptopCategory() { return DeviceCategory("Ноутбуки", Money::fromRubles(25), 5); }
+DeviceCategory applianceCategory() { return DeviceCategory("Бытовая техника", Money::fromRubles(30), 4); }
+
 /**
  * @brief Состав демо-фирмы:
  * - склад из 6 запчастей; экран Galaxy S24 на грани минимума, чтобы сразу был виден дозаказ;
  * - прайс: ставка 25 руб./ч, срочность +50%, 5 услуг;
  * - мастерская на 3 места; термофен давно не калибровали (для отчёта ICertifiable);
  * - сотрудники всех типов, ID через newId(), чтобы не пересекались с клиентами и заказами;
- *   два мастера покрывают смартфоны, ноутбуки и бытовую технику; сотрудник-клиент — ромб;
+ *   два мастера покрывают смартфоны, ноутбуки и бытовую технику; Максим недавно аттестован,
+ *   Ольге аттестация нужна (для отчёта ICertifiable); сотрудник-клиент — ромб;
  * - 2 обычных клиента и 1 корпоративный с договором;
  * - заказ Ивана (смартфон) готов к выдаче: осталось выставить счёт, оплатить и выдать;
  * - заказ Марии (ноутбук) в ремонте: можно выдать запчасть и закрыть задачу;
@@ -28,9 +33,9 @@ RepairFirm createDemoFirm() {
     Date today(27, 10, 2026);
     Address shop("Минск", "Притыцкого", "20");
 
-    DeviceCategory phones("Смартфоны", Money::fromRubles(15), 3);
-    DeviceCategory laptops("Ноутбуки", Money::fromRubles(25), 5);
-    DeviceCategory home("Бытовая техника", Money::fromRubles(30), 4);
+    DeviceCategory phones = phoneCategory();
+    DeviceCategory laptops = laptopCategory();
+    DeviceCategory home = applianceCategory();
 
     Warehouse w(shop);
     w.add(SparePart("BAT-S24", "Аккумулятор Galaxy S24", models("Galaxy S24", "Galaxy S24+"),
@@ -68,6 +73,7 @@ RepairFirm createDemoFirm() {
                      Date(12, 5, 1995), Date(1, 3, 2022), Money::fromRubles(1000), 2, 3);
     maxim.addSpecialization(Specialization("Ремонт смартфонов", phones, 1));
     maxim.addSpecialization(Specialization("Ремонт ноутбуков", laptops, 2));
+    maxim.certify(Date(1, 9, 2026));
     Technician olga(f.newId(), "Ольга Новик", ContactInfo("+375291000002", "olga@remont.by", shop),
                     Date(3, 8, 1990), Date(1, 9, 2024), Money::fromRubles(1100), 3, 3);
     olga.addSpecialization(Specialization("Бытовая техника", home, 1));
