@@ -11,14 +11,17 @@ int ShareManager::indexOf(const std::string& token) const {
 }
 
 /**
- * @brief djb2 — простой хеш, у двух разных строк может совпасть результат. Тогда find находил бы
- * чужую ссылку, поэтому при совпадении номер увеличивается, пока токен не станет новым.
+ * @brief Номер стоит в начале строки, а за ним ID файла, автора и время: в djb2 последний символ меняет хеш
+ * только на свою разницу, и короткая строка с номером в конце давала бы токены подряд (...ca73, ...ca74).
+ * djb2 — простой хеш, у разных строк результат может совпасть; тогда find находил бы чужую ссылку,
+ * поэтому номер увеличивается, пока токен не станет новым.
  */
 std::string ShareManager::create(int entryId, int userId, Permission::Access a, const Timestamp& now,
                                  int days, int maxUses) {
     std::string token;
     do {
-        token = Checksum::of(std::to_string(entryId) + ":" + std::to_string(++counter_)).toHex();
+        token = Checksum::of(std::to_string(++counter_) + ":" + std::to_string(entryId) + ":"
+                             + std::to_string(userId) + ":" + std::to_string(now.toMinutes())).toHex();
     } while (contains(token));
     links_.push_back(ShareLink(token, entryId, userId, a, now, days, maxUses));
     return token;
