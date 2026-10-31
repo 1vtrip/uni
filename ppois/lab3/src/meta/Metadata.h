@@ -12,8 +12,8 @@ class Metadata {
 public:
     Metadata();
 
-    /** @brief Записать значение; если ключ уже есть, значение заменяется. false для пустого ключа. */
-    bool set(const std::string& key, const std::string& value);
+    /** @brief Записать значение; если ключ уже есть, значение заменяется. @throws InvalidOperationException пустой ключ. */
+    void set(const std::string& key, const std::string& value);
     /** @brief Значение по ключу; нет ключа -> пустая строка (отличить от пустого значения через has). */
     std::string get(const std::string& key) const;
     /** @brief Удалить пару; false, если ключа нет. */

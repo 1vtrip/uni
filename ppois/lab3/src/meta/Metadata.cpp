@@ -1,4 +1,5 @@
 #include "meta/Metadata.h"
+#include "exceptions/Exceptions.h"
 
 Metadata::Metadata() : keys_(), values_(), tags_() {}
 
@@ -15,8 +16,8 @@ int Metadata::tagIndexOf(const std::string& name) const {
 }
 
 /** @brief Новый ключ добавляется сразу в оба вектора, чтобы они оставались одной длины. */
-bool Metadata::set(const std::string& key, const std::string& value) {
-    if (key.empty()) return false;          // TODO(exc): пустой ключ
+void Metadata::set(const std::string& key, const std::string& value) {
+    if (key.empty()) throw InvalidOperationException("пустой ключ метаданных");
     int i = indexOf(key);
     if (i >= 0) {
         values_[i] = value;
@@ -24,7 +25,6 @@ bool Metadata::set(const std::string& key, const std::string& value) {
         keys_.push_back(key);
         values_.push_back(value);
     }
-    return true;
 }
 
 std::string Metadata::get(const std::string& key) const {

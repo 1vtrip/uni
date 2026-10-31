@@ -5,8 +5,8 @@
 class Timestamp {
 public:
     /**
-     * @brief Создать момент времени. Значения не проверяются, проверка через isValid().
-     * TODO(exc): некорректная дата или время
+     * @brief Создать момент времени.
+     * @throws InvalidOperationException такой даты или времени не существует (см. isValid).
      */
     Timestamp(int day = 1, int month = 1, int year = 2000, int hour = 0, int minute = 0);
 

@@ -16,10 +16,9 @@ public:
     explicit Permission(int mode = 0644);
     /**
      * @brief Разобрать строку вида "rwxr-x---".
-     * @return false, если строка не из 9 символов или символ не на своём месте; result тогда не меняется.
-     * TODO(exc): FileSystemException
+     * @throws FileSystemException строка не из 9 символов или символ не на своём месте.
      */
-    static bool fromString(const std::string& rwx, Permission& result);
+    static Permission fromString(const std::string& rwx);
     /** @brief Обычный файл: rw-r--r-- (0644). */
     static Permission forFile();
     /** @brief Папка: rwxr-xr-x (0755). */

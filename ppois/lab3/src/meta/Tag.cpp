@@ -1,7 +1,11 @@
 #include "meta/Tag.h"
+#include "exceptions/Exceptions.h"
 #include <cctype>
 
-Tag::Tag(const std::string& name, const std::string& color) : name_(name), color_(color) {}
+Tag::Tag(const std::string& name, const std::string& color) : name_(name), color_(color) {
+    if (!isValidName(name)) throw InvalidOperationException("недопустимое имя метки \"" + name + "\"");
+    if (!isValidColor(color)) throw InvalidOperationException("недопустимый цвет метки \"" + color + "\"");
+}
 
 /**
  * @brief Буквы считаются по UTF-8: байты продолжения имеют вид 10xxxxxx и не считаются,
@@ -33,10 +37,9 @@ bool Tag::matches(const std::string& query) const {
     return true;
 }
 
-bool Tag::setColor(const std::string& color) {
-    if (!isValidColor(color)) return false;     // TODO(exc): недопустимый цвет
+void Tag::setColor(const std::string& color) {
+    if (!isValidColor(color)) throw InvalidOperationException("недопустимый цвет метки \"" + color + "\"");
     color_ = color;
-    return true;
 }
 
 const std::string& Tag::getName() const { return name_; }

@@ -1,4 +1,5 @@
 #include "meta/Permission.h"
+#include "exceptions/Exceptions.h"
 
 Permission::Permission(int mode) : mode_(mode & 0777) {}
 Permission Permission::forFile()      { return Permission(0644); }
@@ -24,16 +25,15 @@ bool Permission::allows(int access, bool isOwner, bool inGroup) const {
 }
 
 /** @brief Символ с номером i отвечает за бит 8 - i; на месте i допустима буква "rwx"[i % 3] или '-'. */
-bool Permission::fromString(const std::string& rwx, Permission& result) {
-    if (rwx.size() != 9) return false;                  // TODO(exc): FileSystemException
+Permission Permission::fromString(const std::string& rwx) {
+    if (rwx.size() != 9) throw FileSystemException("Права должны быть из 9 символов: " + rwx);
     const char letters[] = {'r', 'w', 'x'};
     int mode = 0;
     for (int i = 0; i < 9; ++i) {
         if (rwx[i] == letters[i % 3]) mode |= 1 << (8 - i);
-        else if (rwx[i] != '-') return false;           // TODO(exc): FileSystemException
+        else if (rwx[i] != '-') throw FileSystemException("Недопустимый символ в правах: " + rwx);
     }
-    result = Permission(mode);
-    return true;
+    return Permission(mode);
 }
 
 std::string Permission::toString() const {

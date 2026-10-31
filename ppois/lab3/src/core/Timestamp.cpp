@@ -1,8 +1,15 @@
 #include "core/Timestamp.h"
+#include "exceptions/Exceptions.h"
 #include <iomanip>
+#include <string>
 
 Timestamp::Timestamp(int day, int month, int year, int hour, int minute)
-    : year_(year), month_(month), day_(day), hour_(hour), minute_(minute) {}
+    : year_(year), month_(month), day_(day), hour_(hour), minute_(minute) {
+    if (!isValid())
+        throw InvalidOperationException("несуществующая дата " + std::to_string(day) + "."
+            + std::to_string(month) + "." + std::to_string(year) + " "
+            + std::to_string(hour) + ":" + std::to_string(minute));
+}
 
 bool Timestamp::isLeap(int y) {
     return (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;

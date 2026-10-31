@@ -6,8 +6,8 @@
 class Tag {
 public:
     /**
-     * @brief Создать метку. Имя и цвет не проверяются, проверка через isValidName и isValidColor.
-     * TODO(exc): недопустимое имя метки
+     * @brief Создать метку.
+     * @throws InvalidOperationException имя не проходит isValidName или цвет не проходит isValidColor.
      */
     explicit Tag(const std::string& name = "tag", const std::string& color = "gray");
 
@@ -18,8 +18,8 @@ public:
 
     /** @brief Совпадает ли имя с query без учёта регистра (полное совпадение, не подстрока). */
     bool matches(const std::string& query) const;
-    /** @brief Сменить цвет; false, если цвет недопустим (цвет тогда не меняется). */
-    bool setColor(const std::string& color);
+    /** @brief Сменить цвет. @throws InvalidOperationException цвет недопустим (цвет тогда не меняется). */
+    void setColor(const std::string& color);
 
     const std::string& getName() const;
     const std::string& getColor() const;

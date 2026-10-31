@@ -1,15 +1,13 @@
 #include "core/Path.h"
+#include "exceptions/Exceptions.h"
 #include <cctype>
 #include <sstream>
 
 Path::Path() : parts_(), absolute_(true) {}
 
-/**
- * @brief Строка режется по '/' через getline. Результат собирается во временном пути
- * и копируется в result только при успехе, чтобы при ошибке result не менялся.
- */
-bool Path::parse(const std::string& text, Path& result) {
-    if (text.empty()) return false;                 // TODO(exc): InvalidPathException
+/** @brief Строка режется по '/' через getline, части по одной проверяются и складываются в path. */
+Path Path::parse(const std::string& text) {
+    if (text.empty()) throw InvalidPathException("пустая строка");
     Path path;
     path.absolute_ = text[0] == '/';
     std::istringstream in(text);
@@ -17,15 +15,14 @@ bool Path::parse(const std::string& text, Path& result) {
     while (std::getline(in, part, '/')) {
         if (part.empty() || part == ".") continue;
         if (part == "..") {
-            if (path.parts_.empty()) return false;  // TODO(exc): InvalidPathException
+            if (path.parts_.empty()) throw InvalidPathException(text + " (\"..\" выше начала пути)");
             path.parts_.pop_back();
             continue;
         }
-        if (!isValidName(part)) return false;       // TODO(exc): InvalidPathException
+        if (!isValidName(part)) throw InvalidPathException(text);
         path.parts_.push_back(part);
     }
-    result = path;
-    return true;
+    return path;
 }
 
 bool Path::isValidName(const std::string& name) {

@@ -15,10 +15,9 @@ public:
 
     /**
      * @brief Разобрать и нормализовать путь: пустые части и "." пропускаются, ".." убирает предыдущую часть.
-     * @return false, если строка пустая, ".." выходит выше начала пути или имя недопустимо; result тогда не меняется.
-     * TODO(exc): InvalidPathException
+     * @throws InvalidPathException строка пустая, ".." выходит выше начала пути или имя недопустимо.
      */
-    static bool parse(const std::string& text, Path& result);
+    static Path parse(const std::string& text);
     /** @brief Допустимое имя: не пустое, не длиннее 255, без '/', не "." и не "..". */
     static bool isValidName(const std::string& name);
 
