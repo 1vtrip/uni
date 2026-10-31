@@ -28,6 +28,11 @@ public:
     virtual bool canManageUsers() const;
     /** @brief Может ли читать любой файл в обход прав; по умолчанию false. */
     virtual bool canReadAnyFile() const;
+    /**
+     * @brief Разрешён ли вход в момент now (кроме пароля и блокировки); по умолчанию да.
+     * Гость переопределяет: нельзя после срока действия. Так AuthService проверяет любую запись одинаково.
+     */
+    virtual bool canLogin(const Timestamp& now) const;
     /** @brief "#7 ivan (Иван Петров) — Пользователь", у заблокированной с пометкой. */
     virtual void print(std::ostream& os) const;
 

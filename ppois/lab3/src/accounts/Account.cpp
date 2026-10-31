@@ -14,6 +14,7 @@ Account::Account(int id, const std::string& login, const std::string& displayNam
 int Account::maxSessionMinutes() const { return 60; }
 bool Account::canManageUsers() const { return false; }
 bool Account::canReadAnyFile() const { return false; }
+bool Account::canLogin(const Timestamp&) const { return true; }
 
 /** @brief role() виртуальный, поэтому даже базовый print печатает роль настоящего типа. */
 void Account::print(std::ostream& os) const {
