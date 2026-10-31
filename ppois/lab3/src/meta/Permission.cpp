@@ -7,21 +7,21 @@ Permission Permission::forDirectory() { return Permission(0755); }
 Permission Permission::forPrivate()   { return Permission(0600); }
 
 // Владелец — старшие 3 бита, группа — средние, остальные — младшие. В тройке: r=4, w=2, x=1.
-int Permission::bit(int scope, int access) {
-    int shift = scope == OWNER ? 6 : scope == GROUP ? 3 : 0;
-    int value = access == READ ? 4 : access == WRITE ? 2 : 1;
+int Permission::bit(Scope scope, Access access) {
+    int shift = scope == Scope::Owner ? 6 : scope == Scope::Group ? 3 : 0;
+    int value = access == Access::Read ? 4 : access == Access::Write ? 2 : 1;
     return value << shift;
 }
 
-bool Permission::has(int scope, int access) const { return (mode_ & bit(scope, access)) != 0; }
-void Permission::grant(int scope, int access)     { mode_ |= bit(scope, access); }
-void Permission::revoke(int scope, int access)    { mode_ &= ~bit(scope, access); }
+bool Permission::has(Scope scope, Access access) const { return (mode_ & bit(scope, access)) != 0; }
+void Permission::grant(Scope scope, Access access)     { mode_ |= bit(scope, access); }
+void Permission::revoke(Scope scope, Access access)    { mode_ &= ~bit(scope, access); }
 int Permission::toOctal() const { return mode_; }
 
-bool Permission::allows(int access, bool isOwner, bool inGroup) const {
-    if (isOwner) return has(OWNER, access);
-    if (inGroup) return has(GROUP, access);
-    return has(OTHERS, access);
+bool Permission::allows(Access access, bool isOwner, bool inGroup) const {
+    if (isOwner) return has(Scope::Owner, access);
+    if (inGroup) return has(Scope::Group, access);
+    return has(Scope::Others, access);
 }
 
 /** @brief Символ с номером i отвечает за бит 8 - i; на месте i допустима буква "rwx"[i % 3] или '-'. */

@@ -8,10 +8,10 @@
  */
 class Permission {
 public:
-    /** @brief Виды доступа. TODO(exc): заменить на enum class Access. */
-    static const int READ = 0, WRITE = 1, EXECUTE = 2;
-    /** @brief Кому даётся доступ. TODO(exc): заменить на enum class Scope. */
-    static const int OWNER = 0, GROUP = 1, OTHERS = 2;
+    /** @brief Вид доступа: чтение, запись, выполнение. */
+    enum class Access { Read, Write, Execute };
+    /** @brief Кому даётся доступ: владельцу, группе, остальным. */
+    enum class Scope { Owner, Group, Others };
 
     explicit Permission(int mode = 0644);
     /**
@@ -27,13 +27,13 @@ public:
     static Permission forPrivate();
 
     /** @brief Есть ли у scope право access. */
-    bool has(int scope, int access) const;
+    bool has(Scope scope, Access access) const;
     /** @brief Можно ли действие пользователю: проверяется только одна тройка (владелец, иначе группа, иначе остальные). */
-    bool allows(int access, bool isOwner, bool inGroup) const;
+    bool allows(Access access, bool isOwner, bool inGroup) const;
     /** @brief Выдать право. */
-    void grant(int scope, int access);
+    void grant(Scope scope, Access access);
     /** @brief Отозвать право. */
-    void revoke(int scope, int access);
+    void revoke(Scope scope, Access access);
     int toOctal() const;
     /** @brief Строка вида "rw-r--r--". */
     std::string toString() const;
@@ -44,7 +44,7 @@ public:
 
 private:
     /** @brief Маска одного бита: r=4, w=2, x=1, сдвинутые на 6 (владелец), 3 (группа) или 0 (остальные). */
-    static int bit(int scope, int access);
+    static int bit(Scope scope, Access access);
 
     int mode_;
 };
