@@ -50,11 +50,12 @@ public:
         : FileSystemException("Доступ запрещён: пользователь " + user + " не может " + action) {}
 };
 
-/** @brief Неверный логин или пароль. */
+/** @brief Вход не удался: неверный логин или пароль, либо учётная запись заблокирована. */
 class AuthenticationException : public FileSystemException {
 public:
-    explicit AuthenticationException(const std::string& login)
-        : FileSystemException("Не удалось войти как " + login + ": неверный логин или пароль") {}
+    explicit AuthenticationException(const std::string& login,
+                                     const std::string& reason = "неверный логин или пароль")
+        : FileSystemException("Не удалось войти как " + login + ": " + reason) {}
 };
 
 /** @brief Пароль не проходит требования PasswordPolicy. */
