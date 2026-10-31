@@ -9,6 +9,10 @@ std::string UserAccount::role() const { return "Пользователь"; }
 
 void UserAccount::print(std::ostream& os) const {
     Account::print(os);
+    printUserPart(os);
+}
+
+void UserAccount::printUserPart(std::ostream& os) const {
     os << ", домашняя папка #" << homeDirId_ << ", квота " << quota_;
 }
 

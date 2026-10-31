@@ -13,7 +13,7 @@ public:
                 const Credentials& credentials, const Timestamp& created, int homeDirId);
 
     std::string role() const override;
-    /** @brief Строка Account::print, домашняя папка и квота. */
+    /** @brief Строка Account::print и printUserPart. */
     void print(std::ostream& os) const override;
     /** @brief Лимит квоты для этого типа учётной записи: у пользователя 1 GB. */
     virtual DataSize defaultQuota() const;
@@ -30,6 +30,9 @@ public:
     void resetQuota();
 
 protected:
+    /** @brief Только поля пользователя: домашняя папка и квота. Отдельно, чтобы SuperUser не печатал Account дважды. */
+    void printUserPart(std::ostream& os) const;
+
     int homeDirId_;
     Quota quota_;
 };
