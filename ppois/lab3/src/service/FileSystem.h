@@ -122,9 +122,24 @@ public:
     void rollback(const std::string& path, int version);
     /** @brief История версий текстового файла (нужно право чтения). */
     const VersionHistory& versionsOf(const std::string& path);
+    /**
+     * @brief Переименовать (нужна запись в папку-родителя). Пути ссылок на элемент обновляются.
+     * @throws InvalidOperationException системная папка. @throws InvalidPathException / EntryAlreadyExistsException /
+     * AccessDeniedException / FileLockedException.
+     */
     void rename(const std::string& path, const std::string& newName);
+    /**
+     * @brief Переместить в другую папку (нужна запись в старую и новую). Пути ссылок обновляются.
+     * @throws InvalidOperationException системная папка или перенос папки внутрь самой себя;
+     * а также InvalidPathException / EntryAlreadyExistsException / AccessDeniedException / FileLockedException.
+     */
     void move(const std::string& path, const std::string& newParentPath);
+    /**
+     * @brief Скопировать файл (ссылка раскрывается, как у cp); владелец копии и плательщик квоты — копирующий.
+     * Занятое имя -> "a (копия).txt", "a (копия 2).txt"... @throws InvalidOperationException не файл.
+     */
     int copy(const std::string& path, const std::string& newParentPath);
+    /** @brief Сменить права ("rwxr-x---"): владелец или администратор. @throws AccessDeniedException / FileSystemException. */
     void chmod(const std::string& path, const std::string& rwx);
     void remove(const std::string& path);
     void restore(int entryId);
@@ -231,5 +246,12 @@ private:
     void writeContent(int fileId, const std::string& content, int userId, const std::string& comment);
     /** @brief История версий файла. @throws InvalidOperationException истории нет. */
     VersionHistory& historyOf(int fileId);
-    bool isInsideSubtree(int id, int rootId) const;                  // для move
+    /** @brief Лежит ли id внутри rootId (или это он сам): подъём по parentId. Нужно для move. */
+    bool isInsideSubtree(int id, int rootId) const;
+    /** @brief "/", "/home" и домашние папки нельзя переименовать, переместить или удалить. */
+    bool isProtected(int id) const;
+    /** @brief Обновить путь у ссылок, чья цель — movedId или что-то внутри него (после rename и move). */
+    void refreshLinks(int movedId);
+    /** @brief Свободное имя для копии: name, иначе "a (копия).txt", "a (копия 2).txt"... перед расширением. */
+    std::string copyName(int dirId, const std::string& name) const;
 };

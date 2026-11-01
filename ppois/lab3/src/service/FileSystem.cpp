@@ -534,6 +534,177 @@ const VersionHistory& FileSystem::versionsOf(const std::string& path) {
     return historyOf(id);
 }
 
+// ===================== переименование, перемещение, копирование, права =====================
+
+/** @brief Если идти от id вверх и встретить rootId, id внутри него. Глубина ограничена на случай испорченных данных. */
+bool FileSystem::isInsideSubtree(int id, int rootId) const {
+    int current = id;
+    for (int depth = 0; current != 0 && depth < 1000; ++depth) {
+        if (current == rootId) return true;
+        current = entry(current).getParentId();
+    }
+    return false;
+}
+
+/** @brief Папки в /home создаёт только система, поэтому каждая из них — чья-то домашняя. */
+bool FileSystem::isProtected(int id) const {
+    if (id == ROOT_ID || id == HOME_ID) return true;
+    const FsEntry& e = entry(id);
+    return e.isDirectory() && e.getParentId() == HOME_ID;
+}
+
+/**
+ * @brief Ссылка хранит и ID цели, и путь строкой. После rename или move ID остаётся верным,
+ * а путь устаревает, поэтому он пересчитывается у всех ссылок на элемент или его содержимое.
+ */
+void FileSystem::refreshLinks(int movedId) {
+    for (size_t i = 0; i < symlinks_.size(); ++i) {
+        if (symlinks_[i].isBroken()) continue;
+        int target = symlinks_[i].getTargetId();
+        try {
+            if (isInsideSubtree(target, movedId)) symlinks_[i].retarget(target, pathOf(target), now_);
+        } catch (const EntryNotFoundException&) {
+            symlinks_[i].markBroken();   // цели уже нет
+        }
+    }
+}
+
+void FileSystem::rename(const std::string& path, const std::string& newName) {
+    int userId = currentUserId();
+    int id = resolve(path);
+    if (isProtected(id)) throw InvalidOperationException("системную папку " + path + " нельзя переименовать");
+    int parent = entry(id).getParentId();
+    checkAccess(parent, Permission::Access::Write, userId);
+    if (!Path::isValidName(newName)) throw InvalidPathException("недопустимое имя \"" + newName + "\"");
+    if (newName == entry(id).getName()) return;
+    if (findChild(parent, newName) != 0) throw EntryAlreadyExistsException(childPath(parent, newName));
+    int holder = foreignLockOwner(id, userId, false);
+    if (holder != 0) throw FileLockedException(pathOf(id), holder);
+    std::string oldPath = pathOf(id);
+    entry(id).rename(newName, now_);
+    refreshLinks(id);
+    audit_.record(now_, userId, "rename", oldPath, true, "-> " + pathOf(id));
+}
+
+/**
+ * @brief Все проверки до removeChild: иначе при ошибке элемент повис бы «нигде».
+ * Папку нельзя положить внутрь неё самой: она стала бы своим потомком, выпала из дерева,
+ * а pathOf и directorySize ушли бы в бесконечный цикл.
+ */
+void FileSystem::move(const std::string& path, const std::string& newParentPath) {
+    int userId = currentUserId();
+    int id = resolve(path);
+    int dest = resolve(newParentPath);
+    if (isProtected(id)) throw InvalidOperationException("системную папку " + path + " нельзя переместить");
+    if (!entry(dest).isDirectory()) throw InvalidPathException(newParentPath + " (не папка)");
+    if (isInsideSubtree(dest, id))
+        throw InvalidOperationException("нельзя переместить " + path + " внутрь самой себя");
+    int oldParent = entry(id).getParentId();
+    if (dest == oldParent) return;
+    checkAccess(oldParent, Permission::Access::Write, userId);
+    checkAccess(dest, Permission::Access::Write, userId);
+    const std::string& name = entry(id).getName();
+    if (findChild(dest, name) != 0) throw EntryAlreadyExistsException(childPath(dest, name));
+    if (directory(dest).isFull()) throw InvalidOperationException("папка " + newParentPath + " заполнена");
+    int holder = foreignLockOwner(id, userId, false);
+    if (holder != 0) throw FileLockedException(pathOf(id), holder);
+    std::string oldPath = pathOf(id);
+    directory(oldParent).removeChild(id);
+    directory(dest).addChild(id);
+    entry(id).moveTo(dest, now_);
+    refreshLinks(id);
+    audit_.record(now_, userId, "move", oldPath, true, "-> " + pathOf(id));
+}
+
+/** @brief Номер копии вставляется перед расширением; у ".bashrc" точка в начале, расширения нет. */
+std::string FileSystem::copyName(int dirId, const std::string& name) const {
+    if (findChild(dirId, name) == 0) return name;
+    size_t dot = name.rfind('.');
+    std::string base = name, ext;
+    if (dot != std::string::npos && dot > 0) {
+        base = name.substr(0, dot);
+        ext = name.substr(dot);
+    }
+    for (int n = 1;; ++n) {
+        std::string candidate = base + (n == 1 ? " (копия)" : " (копия " + std::to_string(n) + ")") + ext;
+        if (findChild(dirId, candidate) == 0) return candidate;
+    }
+}
+
+/**
+ * @brief У готового объекта нельзя сменить ID и владельца, поэтому для каждого типа файла создаётся
+ * новый объект из геттеров исходника. Данные копируются в локальный объект до push_back:
+ * после push_back ссылка на элемент того же вектора могла бы стать недействительной.
+ */
+int FileSystem::copy(const std::string& path, const std::string& newParentPath) {
+    int userId = currentUserId();
+    int src = followLink(resolve(path));
+    if (entry(src).typeChar() != '-') throw InvalidOperationException("копировать можно только файлы, а " + path + " — нет");
+    checkAccess(src, Permission::Access::Read, userId);
+    int holder = foreignLockOwner(src, userId, true);
+    if (holder != 0) throw FileLockedException(pathOf(src), holder);
+    int dest = resolve(newParentPath);
+    std::string name = copyName(dest, entry(src).getName());
+    checkCanCreate(dest, name, userId);
+    reserveSpace(userId, entry(src).size());
+    int id = nextEntryId_++;
+    std::string srcPath = pathOf(src);
+    const Permission perm = entry(src).getPermission();
+    for (size_t i = 0; i < textFiles_.size(); ++i) {
+        if (textFiles_[i].getId() != src) continue;
+        TextFile c(id, name, dest, userId, perm, now_, textFiles_[i].getContent());
+        c.getMetadata() = textFiles_[i].getMetadata();
+        textFiles_.push_back(c);
+        versions_.push_back(VersionHistory(id, 10));
+        versions_.back().addVersion(c.getContent(), userId, now_, "Копия " + srcPath);
+        break;
+    }
+    for (size_t i = 0; i < images_.size(); ++i) {
+        if (images_[i].getId() != src) continue;
+        const ImageFile& s = images_[i];
+        ImageFile c(id, name, dest, userId, perm, now_, s.getWidth(), s.getHeight(), s.getFormat(), s.getColorDepth());
+        c.getMetadata() = s.getMetadata();
+        images_.push_back(c);
+        break;
+    }
+    for (size_t i = 0; i < executables_.size(); ++i) {
+        if (executables_[i].getId() != src) continue;
+        const ExecutableFile& s = executables_[i];
+        ExecutableFile c(id, name, dest, userId, perm, now_, s.getPlatform(), s.getVersion(), s.size(), s.isSigned());
+        c.getMetadata() = s.getMetadata();
+        executables_.push_back(c);
+        break;
+    }
+    for (size_t i = 0; i < archives_.size(); ++i) {
+        if (archives_[i].getId() != src) continue;
+        ArchiveFile c(id, name, dest, userId, perm, now_, archives_[i].getFormat());
+        const std::vector<ArchiveEntry>& entries = archives_[i].getEntries();
+        for (size_t j = 0; j < entries.size(); ++j) c.addEntry(entries[j], now_);
+        c.getMetadata() = archives_[i].getMetadata();
+        archives_.push_back(c);
+        break;
+    }
+    directory(dest).addChild(id);
+    audit_.record(now_, userId, "copy", pathOf(id), true, "из " + srcPath);
+    if (hasQuota(userId)) notifier_.quotaWarning(quotaOwner(userId), now_);
+    return id;
+}
+
+/** @brief Как в Unix: права меняет владелец или администратор (аналог root). */
+void FileSystem::chmod(const std::string& path, const std::string& rwx) {
+    int userId = currentUserId();
+    int id = resolve(path);
+    Permission p = Permission::fromString(rwx);
+    const Account& acc = account(userId);
+    if (entry(id).getOwnerId() != userId && !acc.canManageUsers()) {
+        audit_.record(now_, userId, "chmod", path, false, "не владелец");
+        throw AccessDeniedException(acc.getLogin(), "менять права " + path + " (не владелец)");
+    }
+    std::string oldRights = entry(id).getPermission().toString();
+    entry(id).chmod(p);
+    audit_.record(now_, userId, "chmod", pathOf(id), true, oldRights + " -> " + p.toString());
+}
+
 // ===================== доступ для отчётов и меню =====================
 
 const std::string& FileSystem::getName() const { return name_; }
