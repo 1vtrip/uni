@@ -6,7 +6,7 @@
 
 FileSystem::FileSystem(const std::string& name, const StorageDevice& device, const Timestamp& now)
     : name_(name), now_(now), directories_(), textFiles_(), images_(), executables_(), archives_(), symlinks_(),
-      users_(), guests_(), admins_(), services_(), groups_(), device_(device), acls_(), versions_(),
+      users_(), guests_(), admins_(), services_(), superUsers_(), groups_(), device_(device), acls_(), versions_(),
       trash_(30, DataSize::fromGB(1)), locks_(), audit_(1000), shares_(), backups_(BackupPolicy()),
       auth_(PasswordPolicy()), notifier_(), compressor_(), nextEntryId_(HOME_ID + 1), nextAccountId_(1),
       sessionId_(0) {
@@ -78,6 +78,17 @@ int FileSystem::addGuest(const std::string& login, const std::string& password, 
     return id;
 }
 
+/** @brief Как addUser: resetQuota() после push_back, чтобы виртуальный defaultQuota() вернул 100 GB SuperUser. */
+int FileSystem::addSuperUser(const std::string& login, const std::string& name, const std::string& password) {
+    checkNewLogin(login);
+    auth_.getPolicy().validate(password, login);
+    int id = nextAccountId_++;
+    int homeId = createHome(login, id);
+    superUsers_.push_back(SuperUser(id, login, name, Credentials::create(login, password), now_, homeId));
+    superUsers_.back().resetQuota();
+    return id;
+}
+
 /** @brief Объект создаётся до push_back: если уровень неверный, конструктор бросит, а вектор не изменится. */
 int FileSystem::addAdmin(const std::string& login, const std::string& name, const std::string& password, int level) {
     checkNewLogin(login);
@@ -94,6 +105,7 @@ const Account& FileSystem::account(int id) const {
     for (size_t i = 0; i < guests_.size(); ++i)   if (guests_[i].getId() == id)   return guests_[i];
     for (size_t i = 0; i < admins_.size(); ++i)   if (admins_[i].getId() == id)   return admins_[i];
     for (size_t i = 0; i < services_.size(); ++i) if (services_[i].getId() == id) return services_[i];
+    for (size_t i = 0; i < superUsers_.size(); ++i) if (superUsers_[i].getId() == id) return superUsers_[i];
     throw EntryNotFoundException("учётная запись #" + std::to_string(id));
 }
 
@@ -102,6 +114,7 @@ Account& FileSystem::accountRef(int id) {
     for (size_t i = 0; i < guests_.size(); ++i)   if (guests_[i].getId() == id)   return guests_[i];
     for (size_t i = 0; i < admins_.size(); ++i)   if (admins_[i].getId() == id)   return admins_[i];
     for (size_t i = 0; i < services_.size(); ++i) if (services_[i].getId() == id) return services_[i];
+    for (size_t i = 0; i < superUsers_.size(); ++i) if (superUsers_[i].getId() == id) return superUsers_[i];
     throw EntryNotFoundException("учётная запись #" + std::to_string(id));
 }
 
@@ -110,6 +123,7 @@ int FileSystem::findAccount(const std::string& login) const {
     for (size_t i = 0; i < guests_.size(); ++i)   if (guests_[i].getLogin() == login)   return guests_[i].getId();
     for (size_t i = 0; i < admins_.size(); ++i)   if (admins_[i].getLogin() == login)   return admins_[i].getId();
     for (size_t i = 0; i < services_.size(); ++i) if (services_[i].getLogin() == login) return services_[i].getId();
+    for (size_t i = 0; i < superUsers_.size(); ++i) if (superUsers_[i].getLogin() == login) return superUsers_[i].getId();
     return 0;
 }
 
@@ -351,6 +365,7 @@ void FileSystem::checkAccess(int entryId, Permission::Access a, int userId) {
 bool FileSystem::hasQuota(int userId) const {
     for (size_t i = 0; i < users_.size(); ++i)  if (users_[i].getId() == userId)  return true;
     for (size_t i = 0; i < guests_.size(); ++i) if (guests_[i].getId() == userId) return true;
+    for (size_t i = 0; i < superUsers_.size(); ++i) if (superUsers_[i].getId() == userId) return true;
     return false;
 }
 
@@ -358,6 +373,7 @@ bool FileSystem::hasQuota(int userId) const {
 UserAccount& FileSystem::quotaOwner(int userId) {
     for (size_t i = 0; i < users_.size(); ++i)  if (users_[i].getId() == userId)  return users_[i];
     for (size_t i = 0; i < guests_.size(); ++i) if (guests_[i].getId() == userId) return guests_[i];
+    for (size_t i = 0; i < superUsers_.size(); ++i) if (superUsers_[i].getId() == userId) return superUsers_[i];
     throw InvalidOperationException("у учётной записи #" + std::to_string(userId) + " нет квоты");
 }
 
@@ -1046,6 +1062,7 @@ const std::vector<UserAccount>& FileSystem::getUsers() const { return users_; }
 const std::vector<GuestAccount>& FileSystem::getGuests() const { return guests_; }
 const std::vector<AdminAccount>& FileSystem::getAdmins() const { return admins_; }
 const std::vector<ServiceAccount>& FileSystem::getServices() const { return services_; }
+const std::vector<SuperUser>& FileSystem::getSuperUsers() const { return superUsers_; }
 const std::vector<UserGroup>& FileSystem::getGroups() const { return groups_; }
 const AuditLog& FileSystem::getAudit() const { return audit_; }
 const RecycleBin& FileSystem::getTrash() const { return trash_; }

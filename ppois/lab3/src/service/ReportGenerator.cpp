@@ -53,6 +53,11 @@ std::string ReportGenerator::diskUsage(const FileSystem& fs) const {
         std::ostringstream q; q << g.getQuota();
         logins.push_back(g.getLogin()); inTree.push_back(fs.directorySize(g.getHomeDirId())); quotas.push_back(q.str());
     }
+    for (size_t i = 0; i < fs.getSuperUsers().size(); ++i) {
+        const SuperUser& s = fs.getSuperUsers()[i];
+        std::ostringstream q; q << s.getQuota();
+        logins.push_back(s.getLogin()); inTree.push_back(fs.directorySize(s.getHomeDirId())); quotas.push_back(q.str());
+    }
     for (size_t i = 0; i < inTree.size(); ++i) {
         size_t best = i;
         for (size_t j = i + 1; j < inTree.size(); ++j)
@@ -84,6 +89,10 @@ std::string ReportGenerator::quotaReport(const FileSystem& fs) const {
     for (size_t i = 0; i < fs.getGuests().size(); ++i) {
         names.push_back(fs.getGuests()[i].getLogin() + " (" + fs.getGuests()[i].role() + ")");
         quotas.push_back(fs.getGuests()[i].getQuota());
+    }
+    for (size_t i = 0; i < fs.getSuperUsers().size(); ++i) {
+        names.push_back(fs.getSuperUsers()[i].getLogin() + " (" + fs.getSuperUsers()[i].role() + ")");
+        quotas.push_back(fs.getSuperUsers()[i].getQuota());
     }
     for (size_t i = 0; i < quotas.size(); ++i) {
         size_t best = i;
@@ -168,6 +177,8 @@ std::string ReportGenerator::securityReport(const FileSystem& fs, int threshold)
         if (fs.getGuests()[i].isBlocked()) { out << ' ' << fs.getGuests()[i].getLogin(); any = true; }
     for (size_t i = 0; i < fs.getAdmins().size(); ++i)
         if (fs.getAdmins()[i].isBlocked()) { out << ' ' << fs.getAdmins()[i].getLogin(); any = true; }
+    for (size_t i = 0; i < fs.getSuperUsers().size(); ++i)
+        if (fs.getSuperUsers()[i].isBlocked()) { out << ' ' << fs.getSuperUsers()[i].getLogin(); any = true; }
     if (!any) out << " нет";
     return out.str();
 }

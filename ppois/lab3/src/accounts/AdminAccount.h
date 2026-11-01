@@ -3,8 +3,11 @@
 #include <vector>
 #include "accounts/Account.h"
 
-/** @brief Администратор: уровень 1–3 и список привилегий. Читать любые файлы может с уровня 2. */
-class AdminAccount : public Account {
+/**
+ * @brief Администратор: уровень 1–3 и список привилегий. Читать любые файлы может с уровня 2.
+ * Наследование virtual — ради ромба SuperUser, как у UserAccount.
+ */
+class AdminAccount : public virtual Account {
 public:
     static const int MIN_LEVEL = 1;
     static const int MAX_LEVEL = 3;

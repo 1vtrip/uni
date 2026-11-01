@@ -4,7 +4,8 @@
 GuestAccount::GuestAccount(int id, const std::string& login, const std::string& displayName,
                            const Credentials& credentials, const Timestamp& created, int homeDirId,
                            const Timestamp& expiresAt)
-    : UserAccount(id, login, displayName, credentials, created, homeDirId), expiresAt_(expiresAt) {
+    : Account(id, login, displayName, credentials, created),   // виртуальную базу создаёт самый производный класс
+      UserAccount(id, login, displayName, credentials, created, homeDirId), expiresAt_(expiresAt) {
     if (expiresAt <= created) throw InvalidOperationException("срок гостевого доступа должен быть позже даты создания");
 }
 

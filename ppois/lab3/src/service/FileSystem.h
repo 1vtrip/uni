@@ -5,6 +5,7 @@
 #include "accounts/AdminAccount.h"
 #include "accounts/GuestAccount.h"
 #include "accounts/ServiceAccount.h"
+#include "accounts/SuperUser.h"
 #include "accounts/UserAccount.h"
 #include "accounts/UserGroup.h"
 #include "fs/ArchiveFile.h"
@@ -56,6 +57,11 @@ public:
     int addGuest(const std::string& login, const std::string& password, int days);
     /** @brief Администратор без домашней папки. Исключения как у addUser, плюс уровень вне 1–3. */
     int addAdmin(const std::string& login, const std::string& name, const std::string& password, int level);
+    /**
+     * @brief Суперпользователь: домашняя папка, квота 100 GB и права администратора уровня 3 (ромб).
+     * Исключения как у addUser.
+     */
+    int addSuperUser(const std::string& login, const std::string& name, const std::string& password);
     /** @brief Учётная запись по ID через ссылку на базовый класс. @throws EntryNotFoundException такой нет. */
     const Account& account(int id) const;
     /** @brief ID учётной записи по логину, 0 — нет такой. */
@@ -212,6 +218,7 @@ public:
     const std::vector<GuestAccount>& getGuests() const;
     const std::vector<AdminAccount>& getAdmins() const;
     const std::vector<ServiceAccount>& getServices() const;
+    const std::vector<SuperUser>& getSuperUsers() const;
     const std::vector<UserGroup>& getGroups() const;
     const AuditLog& getAudit() const;
     const RecycleBin& getTrash() const;
@@ -237,6 +244,7 @@ private:
     std::vector<GuestAccount> guests_;
     std::vector<AdminAccount> admins_;
     std::vector<ServiceAccount> services_;
+    std::vector<SuperUser> superUsers_;
     std::vector<UserGroup> groups_;
     // подсистемы
     StorageDevice device_;

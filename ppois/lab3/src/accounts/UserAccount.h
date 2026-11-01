@@ -2,12 +2,17 @@
 #include "accounts/Account.h"
 #include "storage/Quota.h"
 
-/** @brief Обычный пользователь с домашней папкой и квотой. */
-class UserAccount : public Account {
+/**
+ * @brief Обычный пользователь с домашней папкой и квотой.
+ * Наследование virtual: в ромбе SuperUser (UserAccount + AdminAccount) должен быть один Account, а не два.
+ */
+class UserAccount : public virtual Account {
 public:
     /**
      * @brief Квота создаётся с лимитом 1 GB, а не через defaultQuota(): виртуальный вызов в конструкторе
      * попал бы в версию UserAccount даже у GuestAccount. Правильный лимит ставит resetQuota() после создания.
+     * Вызов Account(...) здесь работает, только когда создаётся сам UserAccount: виртуальную базу
+     * создаёт самый производный класс, у GuestAccount и SuperUser этот вызов пропускается.
      */
     UserAccount(int id, const std::string& login, const std::string& displayName,
                 const Credentials& credentials, const Timestamp& created, int homeDirId);
