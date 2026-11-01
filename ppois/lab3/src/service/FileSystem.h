@@ -141,9 +141,24 @@ public:
     int copy(const std::string& path, const std::string& newParentPath);
     /** @brief Сменить права ("rwxr-x---"): владелец или администратор. @throws AccessDeniedException / FileSystemException. */
     void chmod(const std::string& path, const std::string& rwx);
+    /**
+     * @brief Удалить в корзину (нужна запись в папку-родителя). Квота остаётся занятой до окончательного удаления.
+     * Вытесненные из корзины элементы удаляются окончательно; элемент больше всей корзины — сразу, мимо неё.
+     * @throws InvalidOperationException системная папка. @throws DirectoryNotEmptyException / AccessDeniedException /
+     * FileLockedException.
+     */
     void remove(const std::string& path);
+    /**
+     * @brief Вернуть из корзины: может тот, кто удалил, владелец или администратор. Если исходной папки
+     * уже нет или она сама в корзине — в домашнюю папку владельца (иначе в корень). Занятое имя -> "a (восстановлен).txt".
+     * @throws EntryNotFoundException элемента нет в корзине. @throws AccessDeniedException.
+     */
     void restore(int entryId);
-    int emptyTrash();
+    /**
+     * @brief Окончательно удалить из корзины: по умолчанию только истёкшие; onlyExpired = false — все свои
+     * (у администратора — все). Вернуть, сколько удалено.
+     */
+    int emptyTrash(bool onlyExpired = true);
     int archive(const std::vector<std::string>& paths, const std::string& dirPath, const std::string& name);
     void lock(const std::string& path);
     void unlock(const std::string& path);
@@ -252,6 +267,10 @@ private:
     bool isProtected(int id) const;
     /** @brief Обновить путь у ссылок, чья цель — movedId или что-то внутри него (после rename и move). */
     void refreshLinks(int movedId);
-    /** @brief Свободное имя для копии: name, иначе "a (копия).txt", "a (копия 2).txt"... перед расширением. */
-    std::string copyName(int dirId, const std::string& name) const;
+    /** @brief Свободное имя: name, иначе "a (mark).txt", "a (mark 2).txt"... перед расширением (mark — "копия", "восстановлен"). */
+    std::string freeName(int dirId, const std::string& name, const std::string& mark) const;
+    /** @brief Стоит ли элемент на своём месте в дереве: каждый предок существует и числит его среди детей. */
+    bool isInTree(int id) const;
+    /** @brief Удалить навсегда: из вектора, место владельца, версии, ACL, блокировки; ссылки на него становятся битыми. */
+    void deleteForever(int id);
 };

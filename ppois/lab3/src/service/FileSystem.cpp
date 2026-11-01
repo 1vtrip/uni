@@ -252,6 +252,8 @@ int FileSystem::followLink(int id) const {
         if (entry(current).typeChar() != 'l') return current;
         current = symlink(current).resolve();
         entry(current);
+        // через ссылку нельзя читать то, что лежит в корзине; после восстановления ссылка заработает сама
+        if (trash_.contains(current)) throw EntryNotFoundException(pathOf(current) + " (в корзине)");
     }
     throw InvalidOperationException("цикл ссылок или слишком длинная цепочка: " + pathOf(id));
 }
@@ -616,8 +618,8 @@ void FileSystem::move(const std::string& path, const std::string& newParentPath)
     audit_.record(now_, userId, "move", oldPath, true, "-> " + pathOf(id));
 }
 
-/** @brief Номер копии вставляется перед расширением; у ".bashrc" точка в начале, расширения нет. */
-std::string FileSystem::copyName(int dirId, const std::string& name) const {
+/** @brief Пометка вставляется перед расширением; у ".bashrc" точка в начале, расширения нет. */
+std::string FileSystem::freeName(int dirId, const std::string& name, const std::string& mark) const {
     if (findChild(dirId, name) == 0) return name;
     size_t dot = name.rfind('.');
     std::string base = name, ext;
@@ -626,7 +628,7 @@ std::string FileSystem::copyName(int dirId, const std::string& name) const {
         ext = name.substr(dot);
     }
     for (int n = 1;; ++n) {
-        std::string candidate = base + (n == 1 ? " (копия)" : " (копия " + std::to_string(n) + ")") + ext;
+        std::string candidate = base + " (" + mark + (n == 1 ? "" : " " + std::to_string(n)) + ")" + ext;
         if (findChild(dirId, candidate) == 0) return candidate;
     }
 }
@@ -644,7 +646,7 @@ int FileSystem::copy(const std::string& path, const std::string& newParentPath) 
     int holder = foreignLockOwner(src, userId, true);
     if (holder != 0) throw FileLockedException(pathOf(src), holder);
     int dest = resolve(newParentPath);
-    std::string name = copyName(dest, entry(src).getName());
+    std::string name = freeName(dest, entry(src).getName(), "копия");
     checkCanCreate(dest, name, userId);
     reserveSpace(userId, entry(src).size());
     int id = nextEntryId_++;
@@ -703,6 +705,140 @@ void FileSystem::chmod(const std::string& path, const std::string& rwx) {
     std::string oldRights = entry(id).getPermission().toString();
     entry(id).chmod(p);
     audit_.record(now_, userId, "chmod", pathOf(id), true, oldRights + " -> " + p.toString());
+}
+
+// ===================== корзина =====================
+
+/** @brief Элемент из корзины убран из childIds родителя, поэтому проверка «родитель числит его ребёнком» его отсекает. */
+bool FileSystem::isInTree(int id) const {
+    int current = id;
+    for (int depth = 0; current != ROOT_ID && depth < 1000; ++depth) {
+        int parent;
+        try {
+            parent = entry(current).getParentId();
+            if (parent == 0 || !entry(parent).isDirectory() || !directory(parent).hasChild(current)) return false;
+        } catch (const FileSystemException&) {
+            return false;
+        }
+        current = parent;
+    }
+    return current == ROOT_ID;
+}
+
+/**
+ * @brief Окончательное удаление: элемент стирается из своего вектора, его место освобождается у владельца,
+ * вместе с ним уходят версии, ACL и блокировки. Ссылки на него становятся битыми.
+ */
+void FileSystem::deleteForever(int id) {
+    int owner = entry(id).getOwnerId();
+    DataSize size = entry(id).size();
+    bool erased = false;
+    for (size_t i = 0; i < directories_.size() && !erased; ++i)
+        if (directories_[i].getId() == id) { directories_.erase(directories_.begin() + i); erased = true; }
+    for (size_t i = 0; i < textFiles_.size() && !erased; ++i)
+        if (textFiles_[i].getId() == id) { textFiles_.erase(textFiles_.begin() + i); erased = true; }
+    for (size_t i = 0; i < images_.size() && !erased; ++i)
+        if (images_[i].getId() == id) { images_.erase(images_.begin() + i); erased = true; }
+    for (size_t i = 0; i < executables_.size() && !erased; ++i)
+        if (executables_[i].getId() == id) { executables_.erase(executables_.begin() + i); erased = true; }
+    for (size_t i = 0; i < archives_.size() && !erased; ++i)
+        if (archives_[i].getId() == id) { archives_.erase(archives_.begin() + i); erased = true; }
+    for (size_t i = 0; i < symlinks_.size() && !erased; ++i)
+        if (symlinks_[i].getId() == id) { symlinks_.erase(symlinks_.begin() + i); erased = true; }
+    freeSpace(owner, size);
+    for (size_t i = 0; i < versions_.size(); ++i)
+        if (versions_[i].getFileId() == id) { versions_.erase(versions_.begin() + i); break; }
+    for (size_t i = 0; i < acls_.size(); ++i)
+        if (acls_[i].getEntryId() == id) { acls_.erase(acls_.begin() + i); break; }
+    locks_.releaseAllFor(id);
+    shares_.revokeAllFor(id);
+    for (size_t i = 0; i < symlinks_.size(); ++i)
+        if (symlinks_[i].getTargetId() == id) symlinks_[i].markBroken();
+}
+
+/**
+ * @brief Элемент убирается из папки, но остаётся в своём векторе и сохраняет parentId — поэтому его можно вернуть.
+ * RecycleBin::add возвращает ID вытесненных записей: без их окончательного удаления место бы «утекло».
+ */
+void FileSystem::remove(const std::string& path) {
+    int userId = currentUserId();
+    int id = resolve(path);
+    if (isProtected(id)) throw InvalidOperationException("системную папку " + path + " нельзя удалить");
+    if (entry(id).isDirectory() && !directory(id).isEmpty()) throw DirectoryNotEmptyException(path);
+    int parent = entry(id).getParentId();
+    checkAccess(parent, Permission::Access::Write, userId);
+    int holder = foreignLockOwner(id, userId, false);
+    if (holder != 0) throw FileLockedException(pathOf(id), holder);
+    std::string fullPath = pathOf(id);
+    TrashItem item(id, parent, fullPath, userId, entry(id).size(), now_, trash_.getRetentionDays());
+    directory(parent).removeChild(id);
+    shares_.revokeAllFor(id);
+    locks_.releaseAllFor(id);
+    std::vector<int> evicted;
+    try {
+        evicted = trash_.add(item);
+    } catch (const InvalidOperationException&) {
+        deleteForever(id);
+        audit_.record(now_, userId, "delete", fullPath, true, "больше корзины, удалён сразу");
+        return;
+    }
+    for (size_t i = 0; i < evicted.size(); ++i) deleteForever(evicted[i]);
+    audit_.record(now_, userId, "delete", fullPath, true,
+                  evicted.empty() ? "в корзину" : "в корзину, вытеснено старых: " + std::to_string(evicted.size()));
+}
+
+/**
+ * @brief Все проверки и выбор места — до trash_.restore: иначе запись исчезла бы из корзины,
+ * а положить элемент было бы некуда.
+ */
+void FileSystem::restore(int entryId) {
+    int userId = currentUserId();
+    const std::vector<TrashItem>& items = trash_.getItems();
+    int index = -1;
+    for (size_t i = 0; i < items.size(); ++i)
+        if (items[i].getEntryId() == entryId) index = (int)i;
+    if (index < 0) throw EntryNotFoundException("#" + std::to_string(entryId) + " в корзине");
+    std::string originalPath = items[index].getOriginalPath();
+    int deletedBy = items[index].getDeletedBy();
+    int dest = items[index].getOriginalParentId();
+    int owner = entry(entryId).getOwnerId();
+    const Account& acc = account(userId);
+    if (deletedBy != userId && owner != userId && !acc.canManageUsers()) {
+        audit_.record(now_, userId, "restore", originalPath, false, "не удалял и не владелец");
+        throw AccessDeniedException(acc.getLogin(), "восстановить " + originalPath);
+    }
+    if (!isInTree(dest) || directory(dest).isFull()) {
+        dest = ROOT_ID;
+        if (hasQuota(owner)) {
+            int home = quotaOwner(owner).getHomeDirId();
+            if (isInTree(home) && !directory(home).isFull()) dest = home;
+        }
+    }
+    std::string name = freeName(dest, entry(entryId).getName(), "восстановлен");
+    trash_.restore(entryId);
+    directory(dest).addChild(entryId);
+    if (entry(entryId).getParentId() != dest) entry(entryId).moveTo(dest, now_);
+    if (entry(entryId).getName() != name) entry(entryId).rename(name, now_);
+    refreshLinks(entryId);
+    audit_.record(now_, userId, "restore", pathOf(entryId), true, "было " + originalPath);
+}
+
+/** @brief Записи сначала убираются из корзины, потом сами объекты удаляются навсегда. */
+int FileSystem::emptyTrash(bool onlyExpired) {
+    int userId = currentUserId();
+    std::vector<int> ids;
+    if (onlyExpired) {
+        ids = trash_.purgeExpired(now_);
+    } else {
+        bool admin = account(userId).canManageUsers();
+        const std::vector<TrashItem>& items = trash_.getItems();
+        for (size_t i = 0; i < items.size(); ++i)
+            if (admin || items[i].getDeletedBy() == userId) ids.push_back(items[i].getEntryId());
+        for (size_t i = 0; i < ids.size(); ++i) trash_.restore(ids[i]);
+    }
+    for (size_t i = 0; i < ids.size(); ++i) deleteForever(ids[i]);
+    audit_.record(now_, userId, "purge", "корзина", true, "удалено навсегда: " + std::to_string(ids.size()));
+    return (int)ids.size();
 }
 
 // ===================== доступ для отчётов и меню =====================
