@@ -70,6 +70,8 @@ class SessionExpiredException : public FileSystemException {
 public:
     explicit SessionExpiredException(int sessionId)
         : FileSystemException("Сессия #" + std::to_string(sessionId) + " истекла") {}
+    /** @brief Никто не вошёл в систему. */
+    SessionExpiredException() : FileSystemException("Вход не выполнен: сначала войдите в систему") {}
 };
 
 /** @brief У пользователя не хватает квоты под новые данные. */
