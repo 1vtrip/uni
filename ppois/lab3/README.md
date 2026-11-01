@@ -3,7 +3,113 @@
 **Вариант:** система управления файлами (C++17).  
 **Автор:** ____________________, **группа:** ________
 
-## 1. Предметная область
+Виртуальная файловая система в памяти программы: дерево папок и файлов разных типов, пользователи и права доступа, квоты, версии, корзина, блокировки, ссылки общего доступа, поиск, архивы, резервные копии, аудит и отчёты.
+
+Сборка и запуск: `make` (или `cmake -B build && cmake --build build`), затем `./build/make/fms`; самопроверка — `make test`.
+
+## Классы
+
+Формат строки: `Класс | число полей | число методов | связанные классы`. Учитываются классы модели и интерфейсы (без исключений и классов меню `ui/`); как именно считались поля, методы и ассоциации — в разделе «Правила подсчёта».
+
+| Класс | Поля | Методы | Ассоциации (связанные классы) |
+|---|---|---|---|
+| AccessControlEntry | 4 | 3 | Permission |
+| AccessControlList | 2 | 3 | AccessControlEntry, Permission |
+| Account | 8 | 11 | Credentials, PasswordPolicy, Timestamp |
+| AdminAccount | 2 | 11 | Credentials, Timestamp |
+| ArchiveEntry | 3 | 4 | DataSize |
+| ArchiveFile | 2 | 7 | ArchiveEntry, Permission, Timestamp |
+| AuditLog | 3 | 5 | AuditRecord, Timestamp |
+| AuditRecord | 7 | 2 | Timestamp |
+| AuthService | 3 | 7 | Account, PasswordPolicy, Session, Timestamp |
+| Backup | 6 | 8 | DataSize, Timestamp |
+| BackupManager | 3 | 8 | Backup, BackupPolicy, DataSize, Timestamp |
+| BackupPolicy | 4 | 3 | DataSize, FsEntry, Timestamp |
+| Checksum | 1 | 3 | — |
+| Compressor | 2 | 5 | DataSize, File, MimeType |
+| Credentials | 3 | 4 | Checksum |
+| DataSize | 1 | 6 | — |
+| Directory | 2 | 10 | Permission, Timestamp |
+| ExecutableFile | 3 | 6 | DataSize, Permission, Timestamp |
+| File | 3 | 4 | Checksum, DataSize, MimeType, Permission, Timestamp |
+| FileLock | 5 | 5 | Timestamp |
+| FileSystem | 29 | 90 | AccessControlList, AdminAccount, ArchiveFile, AuditLog, AuthService, BackupManager, Compressor, DataSize, Directory, ExecutableFile, FsEntry, GuestAccount, ImageFile, LockManager, NotificationService, Permission, RecycleBin, SearchQuery, SearchResult, ServiceAccount, ShareManager, StorageDevice, SuperUser, Symlink, TextFile, Timestamp, UserAccount, UserGroup, VersionHistory |
+| FileVersion | 6 | 2 | Checksum, Timestamp |
+| FsEntry | 8 | 8 | Metadata, Permission, Timestamp |
+| GuestAccount | 1 | 8 | Credentials, Timestamp |
+| IExpirable | 0 | 0 | Timestamp |
+| ImageFile | 4 | 8 | Permission, Timestamp |
+| IPrintable | 0 | 0 | — |
+| ISizeable | 0 | 0 | — |
+| LockManager | 1 | 7 | FileLock, Timestamp |
+| Metadata | 3 | 9 | Tag |
+| MimeType | 2 | 6 | — |
+| Notification | 5 | 1 | Timestamp |
+| NotificationService | 1 | 8 | Notification, ShareLink, Timestamp, UserAccount |
+| PasswordPolicy | 4 | 7 | — |
+| Path | 2 | 9 | — |
+| Permission | 1 | 10 | — |
+| Quota | 4 | 7 | DataSize |
+| RecycleBin | 3 | 8 | DataSize, Timestamp, TrashItem |
+| ReportGenerator | 2 | 10 | FileSystem, IExpirable, ISizeable, Timestamp |
+| SearchQuery | 8 | 9 | DataSize, FsEntry, Timestamp |
+| SearchResult | 3 | 5 | DataSize, FsEntry |
+| ServiceAccount | 3 | 9 | Credentials, Timestamp |
+| Session | 6 | 4 | Timestamp |
+| ShareLink | 9 | 5 | Permission, Timestamp |
+| ShareManager | 2 | 8 | Permission, ShareLink, Timestamp |
+| StorageDevice | 6 | 5 | DataSize |
+| SuperUser | 0 | 5 | Credentials, Timestamp |
+| Symlink | 2 | 7 | Permission, Timestamp |
+| Tag | 2 | 4 | — |
+| TextFile | 1 | 9 | Permission, Timestamp |
+| Timestamp | 5 | 9 | — |
+| TrashItem | 7 | 2 | DataSize, Timestamp |
+| UserAccount | 2 | 6 | Credentials, Quota, Timestamp |
+| UserGroup | 3 | 6 | — |
+| VersionHistory | 3 | 9 | FileVersion, Timestamp |
+| Volume | 5 | 2 | Path |
+
+### Исключения (18)
+
+- FileSystemException — база всех исключений системы; напрямую — неверная строка прав
+- EntryNotFoundException — нет элемента, учётной записи, ссылки, записи в корзине, группы или резервной копии; битая ссылка
+- InvalidPathException — путь пустой, относительный, не найден, в середине не папка, ".." выше корня, недопустимое имя
+- EntryAlreadyExistsException — имя занято в папке, логин занят, запись уже в архиве или корзине, группа уже есть
+- DirectoryNotEmptyException — удаление непустой папки
+- InvalidOperationException — бессмысленная операция: перенос папки в саму себя, цикл ссылок, неверные размеры, версия, дата, срок, системная папка
+- AccessDeniedException — нет права по rwx, ACL или роли (запись, чтение, чужая ссылка, администрирование, chmod не владельцем)
+- AuthenticationException — неверный логин или пароль, учётная запись заблокирована, гостевой срок истёк
+- WeakPasswordException — пароль не проходит политику (все причины сразу)
+- SessionExpiredException — не выполнен вход, сессия истекла или закрыта
+- QuotaExceededException — не хватает квоты пользователя
+- InsufficientStorageException — на устройстве нет места или оно отключено
+- ReadOnlyVolumeException — запись в том только для чтения или не смонтированный том
+- FileLockedException — файл заблокирован другим пользователем
+- VersionNotFoundException — нет версии с таким номером, история пуста
+- ShareLinkExpiredException — ссылка отозвана, истекла или кончились переходы
+- CorruptedFileException — контрольная сумма не совпадает, версия повреждена
+- BackupFailedException — резервная копия больше предела, нет готовых копий, копия не готова к восстановлению
+
+Все исключения наследуют `FileSystemException` (а он — `std::runtime_error`). Где именно выбрасывается каждое — в разделе «Исключения: где выбрасываются».
+
+### Итоговая статистика
+
+| Показатель | Требование | Значение |
+|---|---|---|
+| Классы | не менее 50 | 56 |
+| Поля | не менее 150 | 210 |
+| Поведения | не менее 100 | 417 |
+| Ассоциации | не менее 30 | 126 |
+| Исключения | не менее 12 | 18 |
+
+---
+
+## Дополнительно
+
+Ниже — пояснения к модели: предметная область, устройство дерева, иерархии, сборка, подробное описание каждого класса и места, где выбрасываются исключения.
+
+### Предметная область
 
 Программа моделирует **виртуальную файловую систему** в памяти: на диск ничего не пишется, «файл» — это объект с именем, размером и содержимым. Система умеет:
 
@@ -16,7 +122,7 @@
 - ссылки общего доступа со сроком и лимитом переходов, поиск по шаблону `*`/`?`, архивацию и резервное копирование;
 - журнал аудита, уведомления и отчёты о месте, квотах, действиях и безопасности.
 
-## 2. Как хранится дерево без указателей
+### Как хранится дерево без указателей
 
 - У каждого элемента есть уникальный `id_` и `parentId_` — ID папки, в которой он лежит. У корня `/` `id_ = 1`, `parentId_ = 0`.
 - У папки есть `std::vector<int> childIds_` — ID её элементов. Имён и размеров детей папка не видит.
@@ -27,7 +133,7 @@
 - Срезки нет: `FsEntry` и `File` абстрактные и по значению нигде не хранятся, в векторах лежат только конечные типы.
 - Учётные записи хранятся так же: по вектору на тип, наружу — `const Account&`.
 
-## 3. Сборка и запуск
+### Сборка и запуск
 
 ```bash
 cmake -B build && cmake --build build
@@ -60,9 +166,9 @@ make release   # с оптимизацией -O2: build/make-release/fms
 
 Меню выглядит как простой файловый менеджер: в заголовке `ivan@fms:/home/ivan  [квота 0% | 01.11.2026 11:00]`, относительные пути считаются от текущей папки (`cd docs`, `cd ..`). Пункты: вход и пароль, `ls`/`cd`, создание, свойства и preview, текст и версии, переименование и права (rwx, ACL), корзина, блокировки, ссылки, поиск, архив и резервные копии, администрирование, отчёты (в том числе сроки через `IExpirable` и размеры через `ISizeable`), уведомления, перемотка времени, демонстрация всех 18 исключений (на копии системы).
 
-## 4. Иерархии наследования
+### Иерархии наследования
 
-### Учётные записи (ромб)
+#### Учётные записи (ромб)
 ```
 IPrintable (интерфейс)
 └── Account (абстрактный)
@@ -78,7 +184,7 @@ IPrintable (интерфейс)
 
 Благодаря `virtual` в `SuperUser` один `Account` (один ID и логин). Виртуальную базу создаёт самый производный класс, поэтому `Account(...)` первым вызывают конструкторы `SuperUser` и `GuestAccount`. `role()` и `print()` переопределены и в `UserAccount`, и в `AdminAccount`, поэтому `SuperUser` обязан переопределить их сам.
 
-### Элементы файловой системы
+#### Элементы файловой системы
 ```
 IPrintable, ISizeable (интерфейсы)
 └── FsEntry (абстрактный)
@@ -91,7 +197,7 @@ IPrintable, ISizeable (интерфейсы)
     └── Symlink                   [final]
 ```
 
-### Интерфейсы
+#### Интерфейсы
 
 | Интерфейс | Метод | Кто реализует |
 | --- | --- | --- |
@@ -101,7 +207,7 @@ IPrintable, ISizeable (интерфейсы)
 
 `ReportGenerator::expiryStatus(const IExpirable&, ...)` и `sizeLine(const ISizeable&, ...)` работают с любым из этих классов.
 
-### Исключения
+#### Исключения
 ```
 std::runtime_error
 └── FileSystemException
@@ -124,105 +230,41 @@ std::runtime_error
     └── BackupFailedException
 ```
 
-## 5. Сводная таблица классов
+### Подробное описание классов
 
-Модель и интерфейсы, без исключений и классов `ui/`. Правила подсчёта — в разделе 8.
+#### core — базовые типы
 
-| Класс | Модуль | Наследует | Поля | Методы | Ассоциации |
-| --- | --- | --- | ---: | ---: | ---: |
-| AccessControlEntry | accounts | — | 4 | 3 | 1 |
-| AccessControlList | accounts | — | 2 | 3 | 2 |
-| Account | accounts | IPrintable | 8 | 11 | 3 |
-| AdminAccount | accounts | Account | 2 | 11 | 2 |
-| ArchiveEntry | meta | — | 3 | 4 | 1 |
-| ArchiveFile | fs | File | 2 | 7 | 3 |
-| AuditLog | ops | — | 3 | 5 | 2 |
-| AuditRecord | ops | IPrintable | 7 | 2 | 1 |
-| AuthService | service | — | 3 | 7 | 4 |
-| Backup | ops | IPrintable, ISizeable | 6 | 8 | 2 |
-| BackupManager | ops | — | 3 | 8 | 4 |
-| BackupPolicy | ops | — | 4 | 3 | 3 |
-| Checksum | core | — | 1 | 3 | 0 |
-| Compressor | ops | — | 2 | 5 | 3 |
-| Credentials | accounts | — | 3 | 4 | 1 |
-| DataSize | core | — | 1 | 6 | 0 |
-| Directory | fs | FsEntry | 2 | 10 | 2 |
-| ExecutableFile | fs | File | 3 | 6 | 3 |
-| File | fs | FsEntry | 3 | 4 | 5 |
-| FileLock | ops | IExpirable | 5 | 5 | 1 |
-| FileSystem | service | — | 29 | 90 | 29 |
-| FileVersion | storage | — | 6 | 2 | 2 |
-| FsEntry | fs | IPrintable, ISizeable | 8 | 8 | 3 |
-| GuestAccount | accounts | UserAccount, IExpirable | 1 | 8 | 2 |
-| IExpirable | interfaces | — | 0 | 0 | 1 |
-| ImageFile | fs | File | 4 | 8 | 2 |
-| IPrintable | interfaces | — | 0 | 0 | 0 |
-| ISizeable | interfaces | — | 0 | 0 | 0 |
-| LockManager | ops | — | 1 | 7 | 2 |
-| Metadata | meta | — | 3 | 9 | 1 |
-| MimeType | meta | — | 2 | 6 | 0 |
-| Notification | service | — | 5 | 1 | 1 |
-| NotificationService | service | — | 1 | 8 | 4 |
-| PasswordPolicy | accounts | — | 4 | 7 | 0 |
-| Path | core | — | 2 | 9 | 0 |
-| Permission | meta | — | 1 | 10 | 0 |
-| Quota | storage | — | 4 | 7 | 1 |
-| RecycleBin | storage | ISizeable | 3 | 8 | 3 |
-| ReportGenerator | service | — | 2 | 10 | 4 |
-| SearchQuery | ops | — | 8 | 9 | 3 |
-| SearchResult | ops | — | 3 | 5 | 2 |
-| ServiceAccount | accounts | Account | 3 | 9 | 2 |
-| Session | accounts | IExpirable | 6 | 4 | 1 |
-| ShareLink | ops | IExpirable | 9 | 5 | 2 |
-| ShareManager | ops | — | 2 | 8 | 3 |
-| StorageDevice | storage | — | 6 | 5 | 1 |
-| SuperUser | accounts | UserAccount, AdminAccount | 0 | 5 | 2 |
-| Symlink | fs | FsEntry | 2 | 7 | 2 |
-| Tag | meta | — | 2 | 4 | 0 |
-| TextFile | fs | File | 1 | 9 | 2 |
-| Timestamp | core | — | 5 | 9 | 0 |
-| TrashItem | storage | IExpirable | 7 | 2 | 2 |
-| UserAccount | accounts | Account | 2 | 6 | 3 |
-| UserGroup | accounts | — | 3 | 6 | 0 |
-| VersionHistory | storage | — | 3 | 9 | 2 |
-| Volume | storage | — | 5 | 2 | 1 |
-| **Итого: 56** | | | **210** | **417** | **126 пар** |
-
-## 6. Классы по модулям
-
-### core — базовые типы
-
-#### Checksum
+##### Checksum
 
 Контрольная сумма содержимого (хеш djb2). Нужна для проверки целостности файлов.
 
 - **Поля (1):** `value_` (unsigned long long)
 - **Поведение (3):** `of`, `matches`, `toHex`
 
-#### DataSize
+##### DataSize
 
 Объём данных. Хранится в байтах.
 
 - **Поля (1):** `bytes_` (long long)
 - **Поведение (6):** `fromKB`, `fromMB`, `fromGB`, `isZero`, `percentOf`, `toString`
 
-#### Path
+##### Path
 
 Путь в файловой системе, разобранный на части. "/home/ivan/a.txt" хранится как {"home", "ivan", "a.txt"} и absolute_ = true. Корень "/" — абсолютный путь без частей.
 
 - **Поля (2):** `parts_` (std::vector<std::string>), `absolute_` (bool)
 - **Поведение (9):** `parse`, `isValidName`, `toString`, `parent`, `fileName`, `extension`, `join`, `startsWith`, `isRoot`
 
-#### Timestamp
+##### Timestamp
 
 Момент времени с точностью до минуты: дата и время суток.
 
 - **Поля (5):** `year_` (int), `month_` (int), `day_` (int), `hour_` (int), `minute_` (int)
 - **Поведение (9):** `isLeap`, `daysInMonth`, `isValid`, `toMinutes`, `minutesTo`, `daysTo`, `addMinutes`, `addDays`, `toDays`
 
-### meta — права, типы и метаданные
+#### meta — права, типы и метаданные
 
-#### ArchiveEntry
+##### ArchiveEntry
 
 Запись о файле внутри архива: имя, размер до и после сжатия.
 
@@ -230,7 +272,7 @@ std::runtime_error
 - **Поведение (4):** `ratio`, `saved`, `savedPercent`, `isCompressed`
 - **Ассоциации (1):** DataSize
 
-#### Metadata
+##### Metadata
 
 Дополнительные сведения о файле: пары «ключ — значение» и метки. Пары хранятся в двух параллельных векторах: keys_[i] соответствует values_[i].
 
@@ -238,30 +280,30 @@ std::runtime_error
 - **Поведение (9):** `set`, `get`, `remove`, `has`, `addTag`, `removeTag`, `hasTag`, `indexOf`, `tagIndexOf`
 - **Ассоциации (1):** Tag
 
-#### MimeType
+##### MimeType
 
 Тип содержимого файла в формате MIME: "text/plain", "image/png".
 
 - **Поля (2):** `type_` (std::string), `subtype_` (std::string)
 - **Поведение (6):** `fromExtension`, `isText`, `isImage`, `isArchive`, `isExecutable`, `toString`
 
-#### Permission
+##### Permission
 
 Права доступа в стиле Unix: 9 битов rwx для владельца, группы и остальных. Хранятся в одном int, как в chmod: 0750 = rwxr-x---.
 
 - **Поля (1):** `mode_` (int)
 - **Поведение (10):** `fromString`, `forFile`, `forDirectory`, `forPrivate`, `has`, `allows`, `grant`, `revoke`, `toString`, `bit`
 
-#### Tag
+##### Tag
 
 Метка файла или папки: имя и цвет, например #учёба(blue).
 
 - **Поля (2):** `name_` (std::string), `color_` (std::string)
 - **Поведение (4):** `isValidName`, `isValidColor`, `matches`, `setColor`
 
-### fs — элементы файловой системы
+#### fs — элементы файловой системы
 
-#### ArchiveFile  (наследует `File`; `final`)
+##### ArchiveFile  (наследует `File`; `final`)
 
 Архив: список записей о сжатых файлах. Размер архива — сумма сжатых размеров.
 
@@ -269,7 +311,7 @@ std::runtime_error
 - **Поведение (7):** `typeName`, `size`, `preview`, `addEntry`, `contains`, `originalTotal`, `compressionRatio`
 - **Ассоциации (3):** ArchiveEntry, Permission, Timestamp
 
-#### Directory  (наследует `FsEntry`; `final`)
+##### Directory  (наследует `FsEntry`; `final`)
 
 Папка. Хранит только ID своих элементов: имена и размеры детей она не видит, поэтому проверку имени и полный размер с содержимым делает FileSystem.
 
@@ -277,7 +319,7 @@ std::runtime_error
 - **Поведение (10):** `typeName`, `size`, `isDirectory`, `typeChar`, `preview`, `addChild`, `removeChild`, `hasChild`, `isFull`, `itemsWord`
 - **Ассоциации (2):** Permission, Timestamp
 
-#### ExecutableFile  (наследует `File`; `final`)
+##### ExecutableFile  (наследует `File`; `final`)
 
 Исполняемый файл: платформа, версия и цифровая подпись.
 
@@ -285,7 +327,7 @@ std::runtime_error
 - **Поведение (6):** `typeName`, `preview`, `canRunOn`, `isSafeToRun`, `isNewerThan`, `parseVersion`
 - **Ассоциации (3):** DataSize, Permission, Timestamp
 
-#### File  (наследует `FsEntry`)
+##### File  (наследует `FsEntry`)
 
 Общая часть всех файлов: размер, MIME-тип и контрольная сумма. Класс абстрактный, хотя в нём нет ни одного "= 0": он не переопределяет typeName(), и этот метод остаётся чисто виртуальным из FsEntry. Создаются только наследники.
 
@@ -293,7 +335,7 @@ std::runtime_error
 - **Поведение (4):** `print`, `extension`, `verify`, `updateChecksum`
 - **Ассоциации (5):** Checksum, DataSize, MimeType, Permission, Timestamp
 
-#### FsEntry  (наследует `IPrintable`, `ISizeable`)
+##### FsEntry  (наследует `IPrintable`, `ISizeable`)
 
 Абстрактный элемент файловой системы: файл, папка или ссылка. Связь с деревом только через ID: parentId_ — папка, в которой лежит элемент.
 
@@ -301,7 +343,7 @@ std::runtime_error
 - **Поведение (8):** `isDirectory`, `typeChar`, `preview`, `print`, `rename`, `moveTo`, `canAccess`, `isHidden`
 - **Ассоциации (3):** Metadata, Permission, Timestamp
 
-#### ImageFile  (наследует `File`)
+##### ImageFile  (наследует `File`)
 
 Изображение: размеры в пикселях, формат и глубина цвета. Размер файла считается из них.
 
@@ -309,7 +351,7 @@ std::runtime_error
 - **Поведение (8):** `typeName`, `size`, `preview`, `resize`, `aspectRatio`, `megapixels`, `thumbnailSize`, `isCompressedFormat`
 - **Ассоциации (2):** Permission, Timestamp
 
-#### Symlink  (наследует `FsEntry`; `final`)
+##### Symlink  (наследует `FsEntry`; `final`)
 
 Символическая ссылка: путь к цели и её ID. targetId_ = 0 — цель удалена, ссылка битая. Циклы ссылок (a -> b -> a) ссылка сама не видит, их ловит FileSystem.
 
@@ -317,7 +359,7 @@ std::runtime_error
 - **Поведение (7):** `typeName`, `size`, `typeChar`, `preview`, `resolve`, `isBroken`, `retarget`
 - **Ассоциации (2):** Permission, Timestamp
 
-#### TextFile  (наследует `File`)
+##### TextFile  (наследует `File`)
 
 Текстовый файл: содержимое хранится строкой, размер — её длина в байтах.
 
@@ -325,9 +367,9 @@ std::runtime_error
 - **Поведение (9):** `typeName`, `size`, `preview`, `write`, `append`, `lineCount`, `wordCount`, `countOccurrences`, `replaceAll`
 - **Ассоциации (2):** Permission, Timestamp
 
-### storage — место, версии, корзина
+#### storage — место, версии, корзина
 
-#### FileVersion
+##### FileVersion
 
 Снимок содержимого файла в какой-то момент: номер, автор, время и контрольная сумма.
 
@@ -335,7 +377,7 @@ std::runtime_error
 - **Поведение (2):** `size`, `isIntact`
 - **Ассоциации (2):** Checksum, Timestamp
 
-#### Quota
+##### Quota
 
 Лимит дискового пространства пользователя.
 
@@ -343,7 +385,7 @@ std::runtime_error
 - **Поведение (7):** `canAllocate`, `consume`, `release`, `remaining`, `usagePercent`, `isNearLimit`, `setLimit`
 - **Ассоциации (1):** DataSize
 
-#### RecycleBin  (наследует `ISizeable`)
+##### RecycleBin  (наследует `ISizeable`)
 
 Корзина: удалённые элементы хранятся retentionDays_ дней, общий размер не больше maxSize_. Корзина хранит только записи; сами объекты удаляет FileSystem по ID, которые возвращают add и purgeExpired.
 
@@ -351,7 +393,7 @@ std::runtime_error
 - **Поведение (8):** `add`, `restore`, `purgeExpired`, `size`, `contains`, `itemsOf`, `indexOf`, `oldestIndex`
 - **Ассоциации (3):** DataSize, Timestamp, TrashItem
 
-#### StorageDevice
+##### StorageDevice
 
 Физический накопитель: SSD или HDD с ёмкостью и занятым местом.
 
@@ -359,7 +401,7 @@ std::runtime_error
 - **Поведение (5):** `allocate`, `free`, `freeSpace`, `usagePercent`, `estimateWriteSeconds`
 - **Ассоциации (1):** DataSize
 
-#### TrashItem  (наследует `IExpirable`)
+##### TrashItem  (наследует `IExpirable`)
 
 Запись в корзине: что удалено, откуда, кем и до какого срока хранится.
 
@@ -367,7 +409,7 @@ std::runtime_error
 - **Поведение (2):** `isExpired`, `daysLeft`
 - **Ассоциации (2):** DataSize, Timestamp
 
-#### VersionHistory
+##### VersionHistory
 
 История версий одного файла. Версии лежат по возрастанию номера, самая старая — первая. Хранится не больше maxVersions_ версий: лишние старые удаляет prune().
 
@@ -375,7 +417,7 @@ std::runtime_error
 - **Поведение (9):** `addVersion`, `get`, `latest`, `rollbackTo`, `prune`, `hasVersion`, `totalSize`, `indexOf`
 - **Ассоциации (2):** FileVersion, Timestamp
 
-#### Volume
+##### Volume
 
 Том: часть дерева, смонтированная в mountPath_ и лежащая на устройстве deviceId_.
 
@@ -383,9 +425,9 @@ std::runtime_error
 - **Поведение (2):** `checkWritable`, `contains`
 - **Ассоциации (1):** Path
 
-### accounts — учётные записи и безопасность
+#### accounts — учётные записи и безопасность
 
-#### AccessControlEntry
+##### AccessControlEntry
 
 Одно правило ACL: кому (пользователю или группе), какое действие, разрешить или запретить. Флаг isGroup_ нужен, потому что ID пользователя и группы могут совпасть (пользователь #2 и группа #2).
 
@@ -393,7 +435,7 @@ std::runtime_error
 - **Поведение (3):** `appliesTo`, `matches`, `accessName`
 - **Ассоциации (1):** Permission
 
-#### AccessControlList
+##### AccessControlList
 
 Список правил доступа к одному файлу или папке. Проверяется раньше обычных прав rwx. Запрет всегда важнее разрешения, поэтому результат не зависит от порядка правил.
 
@@ -401,7 +443,7 @@ std::runtime_error
 - **Поведение (3):** `add`, `removeFor`, `check`
 - **Ассоциации (2):** AccessControlEntry, Permission
 
-#### Account  (наследует `IPrintable`)
+##### Account  (наследует `IPrintable`)
 
 Абстрактная учётная запись: логин, пароль (в виде хеша), группы и блокировка.
 
@@ -409,7 +451,7 @@ std::runtime_error
 - **Поведение (11):** `maxSessionMinutes`, `canManageUsers`, `canReadAnyFile`, `canLogin`, `print`, `checkPassword`, `changePassword`, `joinGroup`, `leaveGroup`, `isInGroup`, `unblock`
 - **Ассоциации (3):** Credentials, PasswordPolicy, Timestamp
 
-#### AdminAccount  (наследует `Account`)
+##### AdminAccount  (наследует `Account`)
 
 Администратор: уровень 1–3 и список привилегий. Читать любые файлы может с уровня 2. Наследование virtual — ради ромба SuperUser, как у UserAccount.
 
@@ -417,7 +459,7 @@ std::runtime_error
 - **Поведение (11):** `role`, `print`, `maxSessionMinutes`, `canManageUsers`, `canReadAnyFile`, `hasPrivilege`, `grantPrivilege`, `revokePrivilege`, `promote`, `demote`, `printAdminPart`
 - **Ассоциации (2):** Credentials, Timestamp
 
-#### Credentials
+##### Credentials
 
 Данные для входа: логин, соль и хеш пароля. Сам пароль нигде не хранится. Создать можно только через create(): так пароль сразу превращается в хеш.
 
@@ -425,7 +467,7 @@ std::runtime_error
 - **Поведение (4):** `create`, `verify`, `change`, `hash`
 - **Ассоциации (1):** Checksum
 
-#### GuestAccount  (наследует `UserAccount`, `IExpirable`; `final`)
+##### GuestAccount  (наследует `UserAccount`, `IExpirable`; `final`)
 
 Временный гость: маленькая квота, короткая сессия, нельзя делиться файлами, есть срок действия.
 
@@ -433,14 +475,14 @@ std::runtime_error
 - **Поведение (8):** `role`, `print`, `maxSessionMinutes`, `defaultQuota`, `canShare`, `canLogin`, `isExpired`, `extend`
 - **Ассоциации (2):** Credentials, Timestamp
 
-#### PasswordPolicy
+##### PasswordPolicy
 
 Требования к паролю: минимальная длина, цифра, заглавная буква, спецсимвол и запрет на логин внутри пароля.
 
 - **Поля (4):** `minLength_` (int), `requireDigit_` (bool), `requireUpper_` (bool), `requireSpecial_` (bool)
 - **Поведение (7):** `validate`, `strength`, `letterCount`, `hasDigit`, `hasUpper`, `hasSpecial`, `containsLogin`
 
-#### ServiceAccount  (наследует `Account`; `final`)
+##### ServiceAccount  (наследует `Account`; `final`)
 
 Служебная учётная запись для программ (например, резервного копирования). Права задаются списком разрешённых операций; программа подтверждает себя API-ключом.
 
@@ -448,7 +490,7 @@ std::runtime_error
 - **Поведение (9):** `role`, `print`, `maxSessionMinutes`, `canReadAnyFile`, `canPerform`, `allow`, `disallow`, `rotateKey`, `verifyKey`
 - **Ассоциации (2):** Credentials, Timestamp
 
-#### Session  (наследует `IExpirable`)
+##### Session  (наследует `IExpirable`)
 
 Сеанс работы пользователя после входа. Истекает, если закрыт или простой больше maxIdleMinutes_.
 
@@ -456,7 +498,7 @@ std::runtime_error
 - **Поведение (4):** `touch`, `isExpired`, `minutesLeft`, `durationMinutes`
 - **Ассоциации (1):** Timestamp
 
-#### SuperUser  (наследует `UserAccount`, `AdminAccount`; `final`)
+##### SuperUser  (наследует `UserAccount`, `AdminAccount`; `final`)
 
 Администратор с личной домашней папкой и квотой. Ромб: UserAccount и AdminAccount наследуют Account виртуально, поэтому Account в SuperUser один — один ID и один логин.
 
@@ -464,7 +506,7 @@ std::runtime_error
 - **Поведение (5):** `role`, `print`, `maxSessionMinutes`, `canReadAnyFile`, `defaultQuota`
 - **Ассоциации (2):** Credentials, Timestamp
 
-#### UserAccount  (наследует `Account`)
+##### UserAccount  (наследует `Account`)
 
 Обычный пользователь с домашней папкой и квотой. Наследование virtual: в ромбе SuperUser (UserAccount + AdminAccount) должен быть один Account, а не два.
 
@@ -472,16 +514,16 @@ std::runtime_error
 - **Поведение (6):** `role`, `print`, `defaultQuota`, `canShare`, `resetQuota`, `printUserPart`
 - **Ассоциации (3):** Credentials, Quota, Timestamp
 
-#### UserGroup
+##### UserGroup
 
 Группа пользователей (например, students). Участники хранятся по ID, без повторов.
 
 - **Поля (3):** `id_` (int), `name_` (std::string), `memberIds_` (std::vector<int>)
 - **Поведение (6):** `addMember`, `removeMember`, `contains`, `rename`, `checkName`, `membersWord`
 
-### ops — блокировки, аудит, общий доступ, поиск, архивы, резервные копии
+#### ops — блокировки, аудит, общий доступ, поиск, архивы, резервные копии
 
-#### AuditLog
+##### AuditLog
 
 Журнал аудита: последние maxRecords_ действий всех пользователей, старые вытесняются.
 
@@ -489,7 +531,7 @@ std::runtime_error
 - **Поведение (5):** `record`, `byUser`, `failures`, `failedLoginsSince`, `suspiciousUsers`
 - **Ассоциации (2):** AuditRecord, Timestamp
 
-#### AuditRecord  (наследует `IPrintable`)
+##### AuditRecord  (наследует `IPrintable`)
 
 Одна запись журнала аудита: кто, когда, что сделал, с чем и получилось ли.
 
@@ -497,7 +539,7 @@ std::runtime_error
 - **Поведение (2):** `toLine`, `print`
 - **Ассоциации (1):** Timestamp
 
-#### Backup  (наследует `IPrintable`, `ISizeable`)
+##### Backup  (наследует `IPrintable`, `ISizeable`)
 
 Одна резервная копия: какие файлы в неё вошли, общий размер и статус. Статус — маленький конечный автомат: InProgress -> Completed или InProgress -> Failed; оба конечных состояния окончательные.
 
@@ -505,7 +547,7 @@ std::runtime_error
 - **Поведение (8):** `addEntry`, `complete`, `fail`, `contains`, `isUsable`, `statusName`, `print`, `requireInProgress`
 - **Ассоциации (2):** DataSize, Timestamp
 
-#### BackupManager
+##### BackupManager
 
 Резервное копирование: запускает копии по политике, хранит историю и удаляет лишние.
 
@@ -513,7 +555,7 @@ std::runtime_error
 - **Поведение (8):** `isDue`, `runBackup`, `cleanupOld`, `latest`, `get`, `forRestore`, `storageUsed`, `latestUsableIndex`
 - **Ассоциации (4):** Backup, BackupPolicy, DataSize, Timestamp
 
-#### BackupPolicy
+##### BackupPolicy
 
 Правила резервного копирования: как часто, сколько копий хранить, брать ли скрытые, предел размера.
 
@@ -521,7 +563,7 @@ std::runtime_error
 - **Поведение (3):** `isDue`, `nextDue`, `shouldInclude`
 - **Ассоциации (3):** DataSize, FsEntry, Timestamp
 
-#### Compressor
+##### Compressor
 
 Модель сжатия: оценивает степень сжатия по типу файла и время работы по уровню 1–9.
 
@@ -529,7 +571,7 @@ std::runtime_error
 - **Поведение (5):** `estimateRatio`, `compress`, `estimateSeconds`, `setLevel`, `checkLevel`
 - **Ассоциации (3):** DataSize, File, MimeType
 
-#### FileLock  (наследует `IExpirable`)
+##### FileLock  (наследует `IExpirable`)
 
 Блокировка файла на время работы. Shared — «читаю, другим тоже можно читать», Exclusive — «пишу, больше никому нельзя». Действует до expiresAt_.
 
@@ -537,7 +579,7 @@ std::runtime_error
 - **Поведение (5):** `conflictsWith`, `isExpired`, `isHeldBy`, `refresh`, `modeName`
 - **Ассоциации (1):** Timestamp
 
-#### LockManager
+##### LockManager
 
 Все блокировки всех файлов: выдаёт, снимает и проверяет, можно ли писать.
 
@@ -545,7 +587,7 @@ std::runtime_error
 - **Поведение (7):** `acquire`, `release`, `releaseAllFor`, `isLocked`, `canWrite`, `cleanupExpired`, `locksOf`
 - **Ассоциации (2):** FileLock, Timestamp
 
-#### SearchQuery
+##### SearchQuery
 
 Условия поиска: шаблон имени ( и ?), расширение, размер, дата изменения, владелец, скрытые. Пустой фильтр не ограничивает. Сеттеры возвращают this, поэтому их можно писать цепочкой: q.byName(" .txt").bySize(min, max).byOwner(7).
 
@@ -553,7 +595,7 @@ std::runtime_error
 - **Поведение (9):** `wildcardMatch`, `matches`, `byName`, `byExtension`, `bySize`, `modifiedSince`, `byOwner`, `withHidden`, `lower`
 - **Ассоциации (3):** DataSize, FsEntry, Timestamp
 
-#### SearchResult
+##### SearchResult
 
 Результат поиска: ID найденных элементов и их размеры в двух параллельных векторах (ids_[i] и sizes_[i] — один элемент), плюс общий размер.
 
@@ -561,7 +603,7 @@ std::runtime_error
 - **Поведение (5):** `add`, `contains`, `sortBySizeDesc`, `top`, `sortDesc`
 - **Ассоциации (2):** DataSize, FsEntry
 
-#### ShareLink  (наследует `IExpirable`)
+##### ShareLink  (наследует `IExpirable`)
 
 Ссылка для общего доступа к файлу: токен, доступ (чтение или запись), срок и лимит переходов. maxUses_ = 0 — переходов без ограничения.
 
@@ -569,7 +611,7 @@ std::runtime_error
 - **Поведение (5):** `isExpired`, `use`, `remainingUses`, `allowsWrite`, `expiryReason`
 - **Ассоциации (2):** Permission, Timestamp
 
-#### ShareManager
+##### ShareManager
 
 Все ссылки общего доступа: создаёт, находит по токену и отзывает.
 
@@ -577,9 +619,9 @@ std::runtime_error
 - **Поведение (8):** `create`, `find`, `contains`, `revoke`, `revokeAllFor`, `activeOf`, `indexOf`
 - **Ассоциации (3):** Permission, ShareLink, Timestamp
 
-### service — сервисы и FileSystem
+#### service — сервисы и FileSystem
 
-#### AuthService
+##### AuthService
 
 Вход, выход и проверка сессий. Учётные записи хранит FileSystem и передаёт сюда параметром; журнал аудита тоже ведёт FileSystem, здесь только проверки и исключения.
 
@@ -587,7 +629,7 @@ std::runtime_error
 - **Поведение (7):** `login`, `logout`, `requireSession`, `activeSessionsOf`, `cleanup`, `session`, `indexOf`
 - **Ассоциации (4):** Account, PasswordPolicy, Session, Timestamp
 
-#### FileSystem
+##### FileSystem
 
 Файловая система: владеет всеми объектами и связывает их по ID. Элементы дерева лежат в отдельном векторе на каждый конечный тип, а наружу отдаются ссылкой на базовый класс FsEntry — полиморфизм без указателей.
 
@@ -595,7 +637,7 @@ std::runtime_error
 - **Поведение (90):** `advanceTime`, `addUser`, `addGuest`, `addAdmin`, `addSuperUser`, `account`, `findAccount`, `login`, `logout`, `currentUserId`, `isLoggedIn`, `peekUserId`, `changePassword`, `createGroup`, `addToGroup`, `removeFromGroup`, `setQuota`, `setBlocked`, `extendGuest`, `setAclRule`, `clearAclRules`, `aclOf`, `entry`, `resolve`, `followLink`, `pathOf`, `stat`, `list`, `directorySize`, `createDirectory`, `createTextFile`, `createExecutable`, `createSymlink`, `createImage`, `readText`, `writeText`, `rollback`, `versionsOf`, `rename`, `move`, `copy`, `chmod`, `remove`, `restore`, `emptyTrash`, `archive`, `lock`, `unlock`, `share`, `openShared`, `readShared`, `writeShared`, `search`, `runBackup`, `verifyIntegrity`, `simulateCorruption`, `requireAdmin`, `accountIdOf`, `groupNamed`, `accountRef`, `checkNewLogin`, `createHome`, `directory`, `textFile`, `findChild`, `symlink`, `sharesGroup`, `allowedByRules`, `denialReason`, `file`, `addIfVisible`, `addIfBackedUp`, `checkAccess`, `hasQuota`, `quotaOwner`, `reserveSpace`, `freeSpace`, `checkCanCreate`, `childPath`, `foreignLockOwner`, `writeContent`, `historyOf`, `isInsideSubtree`, `isProtected`, `refreshLinks`, `freeName`, `isInTree`, `deleteForever`
 - **Ассоциации (29):** AccessControlList, AdminAccount, ArchiveFile, AuditLog, AuthService, BackupManager, Compressor, DataSize, Directory, ExecutableFile, FsEntry, GuestAccount, ImageFile, LockManager, NotificationService, Permission, RecycleBin, SearchQuery, SearchResult, ServiceAccount, ShareManager, StorageDevice, SuperUser, Symlink, TextFile, Timestamp, UserAccount, UserGroup, VersionHistory
 
-#### Notification
+##### Notification
 
 Уведомление пользователю: текст, канал ("system" или "email"), время и отметка о прочтении.
 
@@ -603,7 +645,7 @@ std::runtime_error
 - **Поведение (1):** `format`
 - **Ассоциации (1):** Timestamp
 
-#### NotificationService
+##### NotificationService
 
 Отправка уведомлений и их история: квота, открытые ссылки, безопасность.
 
@@ -611,7 +653,7 @@ std::runtime_error
 - **Поведение (8):** `notify`, `quotaWarning`, `shareOpened`, `securityAlert`, `unreadFor`, `allFor`, `markAllRead`, `hasUnreadQuotaWarning`
 - **Ассоциации (4):** Notification, ShareLink, Timestamp, UserAccount
 
-#### ReportGenerator
+##### ReportGenerator
 
 Текстовые отчёты за период [from_, to_]: занятое место, квоты, действия пользователя, безопасность. Методы возвращают строки — печатает меню, в модели нет cout.
 
@@ -619,28 +661,28 @@ std::runtime_error
 - **Поведение (10):** `diskUsage`, `quotaReport`, `activity`, `securityReport`, `expiryStatus`, `sizeLine`, `setPeriod`, `inPeriod`, `nameOf`, `pad`
 - **Ассоциации (4):** FileSystem, IExpirable, ISizeable, Timestamp
 
-### interfaces — интерфейсы
+#### interfaces — интерфейсы
 
-#### IExpirable
+##### IExpirable
 
 То, что имеет срок действия: сессия, ссылка, запись в корзине, блокировка, гостевой доступ. Пять не связанных между собой классов с одним общим поведением «истёк ли срок».
 
 - **Поля:** нет
 - **Ассоциации (1):** Timestamp
 
-#### IPrintable
+##### IPrintable
 
 Объект, который умеет вывести себя в поток.
 
 - **Поля:** нет
 
-#### ISizeable
+##### ISizeable
 
 То, у чего есть размер на диске: элемент файловой системы, корзина, резервная копия.
 
 - **Поля:** нет
 
-## 7. Исключения
+### Исключения: где выбрасываются
 
 Все наследуют `FileSystemException`, поэтому меню ловит любое одним `catch (const FileSystemException&)`. Порядок `catch` в меню — от частного к общему: `SessionExpiredException` → `AccessDeniedException` → `QuotaExceededException` → `FileSystemException` → `std::exception`.
 
@@ -667,17 +709,7 @@ std::runtime_error
 
 Каждое из 18 исключений можно увидеть в пункте меню 16, а `./build/fms --test` проверяет, что все они бросаются.
 
-## 8. Итоговая статистика
-
-| Требование | Нужно | Факт |
-| --- | ---: | ---: |
-| Классы | 50 | 56 |
-| Поля | 150 | 210 |
-| Поведения (методы с логикой) | 100 | 417 |
-| Ассоциации | 30 | 126 |
-| Собственные исключения | 12 | 18 |
-
-**Как считалось:**
+### Правила подсчёта
 
 - **Классы** — модель и интерфейсы (`core`, `meta`, `fs`, `storage`, `accounts`, `ops`, `service`, `interfaces`); исключения и классы `ui/` не входят, `enum class` — не классы.
 - **Поля** — только объявленные в самом классе (с суффиксом `_`), без констант `static const`.
