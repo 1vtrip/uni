@@ -35,4 +35,4 @@ const std::string& AuditRecord::getDetails() const { return details_; }
 bool AuditRecord::operator==(const AuditRecord& o) const { return id_ == o.id_; }
 bool AuditRecord::operator!=(const AuditRecord& o) const { return !(*this == o); }
 
-std::ostream& operator<<(std::ostream& os, const AuditRecord& r) { return os << r.toLine(); }
+void AuditRecord::print(std::ostream& os) const { os << toLine(); }

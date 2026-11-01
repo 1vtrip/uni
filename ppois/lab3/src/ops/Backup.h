@@ -4,13 +4,14 @@
 #include <vector>
 #include "core/DataSize.h"
 #include "core/Timestamp.h"
+#include "interfaces/IPrintable.h"
 
 /**
  * @brief Одна резервная копия: какие файлы в неё вошли, общий размер и статус.
  * Статус — маленький конечный автомат: InProgress -> Completed или InProgress -> Failed;
  * оба конечных состояния окончательные.
  */
-class Backup {
+class Backup : public IPrintable {
 public:
     enum class Status { InProgress, Completed, Failed };
 
@@ -45,7 +46,7 @@ public:
     bool operator==(const Backup& o) const;
     bool operator!=(const Backup& o) const;
     /** @brief "Копия #3 от 29.10.2026 10:15: готова, 12 файлов, 4.5 MB" (у ошибки — причина). */
-    friend std::ostream& operator<<(std::ostream& os, const Backup& b);
+    void print(std::ostream& os) const override;
 
 private:
     /** @brief @throws InvalidOperationException статус не InProgress; action — что пытались сделать. */

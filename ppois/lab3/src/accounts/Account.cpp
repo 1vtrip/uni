@@ -82,8 +82,3 @@ int Account::getFailedLogins() const { return failedLogins_; }
 
 bool Account::operator==(const Account& o) const { return id_ == o.id_; }
 bool Account::operator!=(const Account& o) const { return !(*this == o); }
-
-std::ostream& operator<<(std::ostream& os, const Account& a) {
-    a.print(os);
-    return os;
-}

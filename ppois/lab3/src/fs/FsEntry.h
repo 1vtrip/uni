@@ -3,6 +3,7 @@
 #include <string>
 #include "core/DataSize.h"
 #include "core/Timestamp.h"
+#include "interfaces/IPrintable.h"
 #include "meta/Metadata.h"
 #include "meta/Permission.h"
 
@@ -10,7 +11,7 @@
  * @brief Абстрактный элемент файловой системы: файл, папка или ссылка.
  * Связь с деревом только через ID: parentId_ — папка, в которой лежит элемент.
  */
-class FsEntry {
+class FsEntry : public IPrintable {
 public:
     /** @brief Имя не проверяется: его проверяет FileSystem перед созданием (у корня имя пустое). */
     FsEntry(int id, const std::string& name, int parentId, int ownerId,
@@ -28,7 +29,7 @@ public:
     /** @brief Краткое представление содержимого, у каждого типа своё. По умолчанию "[" + typeName() + "]". */
     virtual std::string preview(int maxChars) const;
     /** @brief Строка в стиле ls -l: "-rw-r--r--  #12     1.5 KB  29.10.2026 10:15  notes.txt". */
-    virtual void print(std::ostream& os) const;
+    void print(std::ostream& os) const override;
 
     /** @brief Переименовать. @throws InvalidPathException имя не проходит Path::isValidName. */
     void rename(const std::string& newName, const Timestamp& now);
@@ -68,5 +69,3 @@ protected:
     Metadata metadata_;
 };
 
-/** @brief Вывод через виртуальный print: для любого наследника печатается его версия. */
-std::ostream& operator<<(std::ostream& os, const FsEntry& e);

@@ -54,9 +54,8 @@ const std::string& Backup::getFailReason() const { return failReason_; }
 bool Backup::operator==(const Backup& o) const { return id_ == o.id_; }
 bool Backup::operator!=(const Backup& o) const { return !(*this == o); }
 
-std::ostream& operator<<(std::ostream& os, const Backup& b) {
-    os << "Копия #" << b.id_ << " от " << b.created_ << ": " << Backup::statusName(b.status_) << ", файлов "
-       << b.entryIds_.size() << ", " << b.totalSize_;
-    if (b.status_ == Backup::Status::Failed) os << " (" << b.failReason_ << ")";
-    return os;
+void Backup::print(std::ostream& os) const {
+    os << "Копия #" << id_ << " от " << created_ << ": " << statusName(status_) << ", файлов "
+       << entryIds_.size() << ", " << totalSize_;
+    if (status_ == Status::Failed) os << " (" << failReason_ << ")";
 }

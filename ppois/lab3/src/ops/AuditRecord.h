@@ -2,9 +2,10 @@
 #include <iostream>
 #include <string>
 #include "core/Timestamp.h"
+#include "interfaces/IPrintable.h"
 
 /** @brief Одна запись журнала аудита: кто, когда, что сделал, с чем и получилось ли. */
-class AuditRecord {
+class AuditRecord : public IPrintable {
 public:
     /**
      * @brief userId = 0 — пользователь неизвестен (например, вход под несуществующим логином).
@@ -31,8 +32,8 @@ public:
     /** @brief Записи равны, если совпадают ID. */
     bool operator==(const AuditRecord& o) const;
     bool operator!=(const AuditRecord& o) const;
-    /** @brief Выводит toLine(). */
-    friend std::ostream& operator<<(std::ostream& os, const AuditRecord& r);
+    /** @brief Выводит toLine(); operator<< общий, из IPrintable. */
+    void print(std::ostream& os) const override;
 
 private:
     int id_;

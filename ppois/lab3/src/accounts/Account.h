@@ -4,11 +4,12 @@
 #include <vector>
 #include "accounts/Credentials.h"
 #include "core/Timestamp.h"
+#include "interfaces/IPrintable.h"
 
 class PasswordPolicy;   // предварительное объявление: здесь он нужен только как const&, include — в .cpp
 
 /** @brief Абстрактная учётная запись: логин, пароль (в виде хеша), группы и блокировка. */
-class Account {
+class Account : public IPrintable {
 public:
     static const int MAX_FAILED_LOGINS = 5;
 
@@ -33,8 +34,8 @@ public:
      * Гость переопределяет: нельзя после срока действия. Так AuthService проверяет любую запись одинаково.
      */
     virtual bool canLogin(const Timestamp& now) const;
-    /** @brief "#7 ivan (Иван Петров) — Пользователь", у заблокированной с пометкой. */
-    virtual void print(std::ostream& os) const;
+    /** @brief "#7 ivan (Иван Петров) — Пользователь", у заблокированной с пометкой. Вывод через общий operator<< из IPrintable. */
+    void print(std::ostream& os) const override;
 
     /**
      * @brief Проверка пароля. У заблокированной записи всегда false, даже при верном пароле.
@@ -80,5 +81,3 @@ protected:
     int failedLogins_;
 };
 
-/** @brief Вывод через виртуальный print: для любого наследника печатается его версия. */
-std::ostream& operator<<(std::ostream& os, const Account& a);

@@ -58,8 +58,3 @@ const Metadata& FsEntry::getMetadata() const { return metadata_; }
 
 bool FsEntry::operator==(const FsEntry& o) const { return id_ == o.id_; }
 bool FsEntry::operator!=(const FsEntry& o) const { return !(*this == o); }
-
-std::ostream& operator<<(std::ostream& os, const FsEntry& e) {
-    e.print(os);
-    return os;
-}
