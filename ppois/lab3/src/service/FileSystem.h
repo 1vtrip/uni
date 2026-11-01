@@ -94,12 +94,34 @@ public:
     DataSize directorySize(int dirId) const;
 
     // операции (проверяют сессию, права, блокировки, квоту и пишут аудит)
+    /**
+     * @brief Создать папку (rwxr-xr-x), занимает 4 KB квоты. Общий порядок создания: все проверки,
+     * потом место, потом push_back и addChild (папка берётся заново после push_back).
+     * @throws InvalidPathException / AccessDeniedException / EntryAlreadyExistsException /
+     * QuotaExceededException / InsufficientStorageException / InvalidOperationException (папка заполнена).
+     */
     int createDirectory(const std::string& parentPath, const std::string& name);
+    /** @brief Создать текстовый файл (rw-r--r--) с первой версией "Создан". Исключения как у createDirectory. */
     int createTextFile(const std::string& dirPath, const std::string& name, const std::string& content);
+    /** @brief Создать картинку; объект создаётся до занятия места, его конструктор проверяет размеры. */
     int createImage(const std::string& dirPath, const std::string& name, int w, int h, const std::string& format);
+    /**
+     * @brief Прочитать текст; ссылки раскрываются, как у cat. Нельзя, если чужая Exclusive-блокировка.
+     * @throws AccessDeniedException / FileLockedException / InvalidOperationException (не текстовый файл).
+     */
     std::string readText(const std::string& path);
+    /**
+     * @brief Записать текст и создать версию. Разница в размере списывается с квоты владельца файла.
+     * @throws AccessDeniedException / FileLockedException (чужая блокировка) / QuotaExceededException.
+     */
     void writeText(const std::string& path, const std::string& content);
+    /**
+     * @brief Откат: содержимое версии записывается как новая версия "Откат к vN"; новые версии не удаляются.
+     * @throws VersionNotFoundException / CorruptedFileException и исключения writeText.
+     */
     void rollback(const std::string& path, int version);
+    /** @brief История версий текстового файла (нужно право чтения). */
+    const VersionHistory& versionsOf(const std::string& path);
     void rename(const std::string& path, const std::string& newName);
     void move(const std::string& path, const std::string& newParentPath);
     int copy(const std::string& path, const std::string& newParentPath);
@@ -189,8 +211,25 @@ private:
      * Отказ пишется в аудит. @throws AccessDeniedException.
      */
     void checkAccess(int entryId, Permission::Access a, int userId);
-    void reserveSpace(int userId, const DataSize& size);             // квота + устройство
+    /** @brief Есть ли у учётной записи квота (у пользователя и гостя есть, у админа и служебной нет). */
+    bool hasQuota(int userId) const;
+    /** @brief Пользователь или гость с квотой, через ссылку на UserAccount. @throws InvalidOperationException квоты нет. */
+    UserAccount& quotaOwner(int userId);
+    /**
+     * @brief Занять место: квота, потом устройство. Если устройство откажет, квота возвращается в catch
+     * и исключение бросается дальше. @throws QuotaExceededException / InsufficientStorageException.
+     */
+    void reserveSpace(int userId, const DataSize& size);
     void freeSpace(int ownerId, const DataSize& size);
+    /** @brief Проверки перед созданием элемента name в папке dirId: папка, право записи, имя, повтор, заполненность. */
+    void checkCanCreate(int dirId, const std::string& name, int userId);
+    /** @brief Путь будущего элемента: "/home/ivan" + "a.txt", у корня без двойного слеша. */
+    std::string childPath(int dirId, const std::string& name) const;
+    /** @brief ID того, кто держит живую чужую блокировку (только Exclusive, если exclusiveOnly), 0 — нет. */
+    int foreignLockOwner(int entryId, int userId, bool exclusiveOnly) const;
+    /** @brief Общая часть writeText и rollback: блокировка, квота владельца, запись, версия, аудит. */
+    void writeContent(int fileId, const std::string& content, int userId, const std::string& comment);
+    /** @brief История версий файла. @throws InvalidOperationException истории нет. */
     VersionHistory& historyOf(int fileId);
     bool isInsideSubtree(int id, int rootId) const;                  // для move
 };

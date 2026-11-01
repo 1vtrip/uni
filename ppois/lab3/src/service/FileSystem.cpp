@@ -346,6 +346,194 @@ void FileSystem::checkAccess(int entryId, Permission::Access a, int userId) {
     throw AccessDeniedException(acc.getLogin(), what);
 }
 
+// ===================== место: квота и устройство =====================
+
+bool FileSystem::hasQuota(int userId) const {
+    for (size_t i = 0; i < users_.size(); ++i)  if (users_[i].getId() == userId)  return true;
+    for (size_t i = 0; i < guests_.size(); ++i) if (guests_[i].getId() == userId) return true;
+    return false;
+}
+
+/** @brief GuestAccount — наследник UserAccount, поэтому гость возвращается той же ссылкой на базовый класс. */
+UserAccount& FileSystem::quotaOwner(int userId) {
+    for (size_t i = 0; i < users_.size(); ++i)  if (users_[i].getId() == userId)  return users_[i];
+    for (size_t i = 0; i < guests_.size(); ++i) if (guests_[i].getId() == userId) return guests_[i];
+    throw InvalidOperationException("у учётной записи #" + std::to_string(userId) + " нет квоты");
+}
+
+/** @brief Снимки версий квоту не занимают: иначе 10 версий файла съедали бы место в 10 раз быстрее. */
+void FileSystem::reserveSpace(int userId, const DataSize& size) {
+    if (size.isZero()) return;
+    bool quota = hasQuota(userId);
+    if (quota) {
+        UserAccount& u = quotaOwner(userId);
+        // Quota знает только ID, поэтому сообщение с логином собирается здесь
+        if (!u.getQuota().canAllocate(size))
+            throw QuotaExceededException(u.getLogin(), size.toString(), u.getQuota().remaining().toString());
+        u.getQuota().consume(size);
+    }
+    try {
+        device_.allocate(size);
+    } catch (const InsufficientStorageException&) {
+        if (quota) quotaOwner(userId).getQuota().release(size);   // вернуть квоту, иначе место «утечёт»
+        throw;
+    }
+}
+
+void FileSystem::freeSpace(int ownerId, const DataSize& size) {
+    if (hasQuota(ownerId)) quotaOwner(ownerId).getQuota().release(size);
+    device_.free(size);
+}
+
+// ===================== создание элементов =====================
+
+std::string FileSystem::childPath(int dirId, const std::string& name) const {
+    return dirId == ROOT_ID ? "/" + name : pathOf(dirId) + "/" + name;
+}
+
+/** @brief Заполненность проверяется здесь, до занятия места: иначе квота занята, а addChild бросил бы. */
+void FileSystem::checkCanCreate(int dirId, const std::string& name, int userId) {
+    if (!entry(dirId).isDirectory()) throw InvalidPathException(pathOf(dirId) + " (не папка)");
+    checkAccess(dirId, Permission::Access::Write, userId);
+    if (!Path::isValidName(name)) throw InvalidPathException("недопустимое имя \"" + name + "\"");
+    if (findChild(dirId, name) != 0) throw EntryAlreadyExistsException(childPath(dirId, name));
+    if (directory(dirId).isFull()) throw InvalidOperationException("папка " + pathOf(dirId) + " заполнена");
+}
+
+/**
+ * @brief Ловушка из плана: directories_.push_back может перенести вектор в памяти, и ссылка на
+ * родительскую папку, взятая раньше, станет недействительной. Поэтому папка берётся заново после push_back.
+ */
+int FileSystem::createDirectory(const std::string& parentPath, const std::string& name) {
+    int userId = currentUserId();
+    int dirId = resolve(parentPath);
+    checkCanCreate(dirId, name, userId);
+    reserveSpace(userId, DataSize::fromKB(4));
+    int id = nextEntryId_++;
+    directories_.push_back(Directory(id, name, dirId, userId, Permission::forDirectory(), now_));
+    directory(dirId).addChild(id);
+    audit_.record(now_, userId, "mkdir", pathOf(id), true);
+    return id;
+}
+
+int FileSystem::createTextFile(const std::string& dirPath, const std::string& name, const std::string& content) {
+    int userId = currentUserId();
+    int dirId = resolve(dirPath);
+    checkCanCreate(dirId, name, userId);
+    reserveSpace(userId, DataSize((long long)content.size()));
+    int id = nextEntryId_++;
+    textFiles_.push_back(TextFile(id, name, dirId, userId, Permission::forFile(), now_, content));
+    directory(dirId).addChild(id);
+    versions_.push_back(VersionHistory(id, 10));
+    versions_.back().addVersion(content, userId, now_, "Создан");
+    audit_.record(now_, userId, "create", pathOf(id), true);
+    if (hasQuota(userId)) notifier_.quotaWarning(quotaOwner(userId), now_);
+    return id;
+}
+
+/** @brief Объект создаётся до занятия места: конструктор проверит размеры, а размер файла станет известен. */
+int FileSystem::createImage(const std::string& dirPath, const std::string& name, int w, int h, const std::string& format) {
+    int userId = currentUserId();
+    int dirId = resolve(dirPath);
+    checkCanCreate(dirId, name, userId);
+    ImageFile image(nextEntryId_, name, dirId, userId, Permission::forFile(), now_, w, h, format);
+    reserveSpace(userId, image.size());
+    ++nextEntryId_;
+    images_.push_back(image);
+    directory(dirId).addChild(image.getId());
+    audit_.record(now_, userId, "create", pathOf(image.getId()), true, image.preview(0));
+    if (hasQuota(userId)) notifier_.quotaWarning(quotaOwner(userId), now_);
+    return image.getId();
+}
+
+// ===================== чтение, запись, версии =====================
+
+TextFile& FileSystem::textFile(int id) {
+    for (size_t i = 0; i < textFiles_.size(); ++i) if (textFiles_[i].getId() == id) return textFiles_[i];
+    throw InvalidOperationException(pathOf(id) + " — не текстовый файл");
+}
+
+VersionHistory& FileSystem::historyOf(int fileId) {
+    for (size_t i = 0; i < versions_.size(); ++i) if (versions_[i].getFileId() == fileId) return versions_[i];
+    throw InvalidOperationException("у " + pathOf(fileId) + " нет истории версий");
+}
+
+int FileSystem::foreignLockOwner(int entryId, int userId, bool exclusiveOnly) const {
+    const std::vector<FileLock>& all = locks_.getLocks();
+    for (size_t i = 0; i < all.size(); ++i) {
+        const FileLock& l = all[i];
+        if (l.getEntryId() != entryId || l.isHeldBy(userId) || l.isExpired(now_)) continue;
+        if (!exclusiveOnly || l.getMode() == FileLock::LockMode::Exclusive) return l.getUserId();
+    }
+    return 0;
+}
+
+/** @brief Exclusive — «пишу, больше никому нельзя», поэтому чужая Exclusive-блокировка запрещает и чтение. */
+std::string FileSystem::readText(const std::string& path) {
+    int userId = currentUserId();
+    int id = followLink(resolve(path));
+    checkAccess(id, Permission::Access::Read, userId);
+    const std::string& content = textFile(id).getContent();
+    int holder = foreignLockOwner(id, userId, true);
+    if (holder != 0) throw FileLockedException(pathOf(id), holder);
+    audit_.record(now_, userId, "read", pathOf(id), true);
+    return content;
+}
+
+/**
+ * @brief Квоту меняет владелец файла, а не тот, кто пишет: если гость по ACL допишет в файл ivan,
+ * растёт место ivan. Ссылка f остаётся верной: между её получением и write векторы файлов не меняются.
+ */
+void FileSystem::writeContent(int fileId, const std::string& content, int userId, const std::string& comment) {
+    int holder = foreignLockOwner(fileId, userId, false);
+    if (holder != 0) throw FileLockedException(pathOf(fileId), holder);
+    TextFile& f = textFile(fileId);
+    int owner = f.getOwnerId();
+    DataSize oldSize = f.size();
+    DataSize newSize((long long)content.size());
+    if (oldSize < newSize) reserveSpace(owner, newSize - oldSize);
+    else if (newSize < oldSize) freeSpace(owner, oldSize - newSize);
+    f.write(content, now_);
+    int version = historyOf(fileId).addVersion(content, userId, now_, comment);
+    audit_.record(now_, userId, "write", pathOf(fileId), true, comment + ", v" + std::to_string(version));
+    if (hasQuota(owner)) notifier_.quotaWarning(quotaOwner(owner), now_);
+}
+
+void FileSystem::writeText(const std::string& path, const std::string& content) {
+    int userId = currentUserId();
+    int id = followLink(resolve(path));
+    checkAccess(id, Permission::Access::Write, userId);
+    textFile(id);
+    writeContent(id, content, userId, "Изменён");
+}
+
+/**
+ * @brief Как git revert: старое содержимое становится новой версией, версии после неё остаются.
+ * История знает только ID файла, поэтому путь в CorruptedFileException подставляется здесь.
+ */
+void FileSystem::rollback(const std::string& path, int version) {
+    int userId = currentUserId();
+    int id = followLink(resolve(path));
+    checkAccess(id, Permission::Access::Write, userId);
+    textFile(id);
+    std::string content;
+    try {
+        content = historyOf(id).rollbackTo(version);
+    } catch (const CorruptedFileException&) {
+        audit_.record(now_, userId, "rollback", pathOf(id), false, "версия " + std::to_string(version) + " повреждена");
+        throw CorruptedFileException(pathOf(id) + ", версия " + std::to_string(version));
+    }
+    writeContent(id, content, userId, "Откат к v" + std::to_string(version));
+}
+
+const VersionHistory& FileSystem::versionsOf(const std::string& path) {
+    int userId = currentUserId();
+    int id = followLink(resolve(path));
+    checkAccess(id, Permission::Access::Read, userId);
+    textFile(id);
+    return historyOf(id);
+}
+
 // ===================== доступ для отчётов и меню =====================
 
 const std::string& FileSystem::getName() const { return name_; }
