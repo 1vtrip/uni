@@ -2,6 +2,7 @@
 #   make           — собрать (параллельно, только изменённое), бинарник build/make/fms
 #   make run       — собрать и запустить меню
 #   make test      — собрать и запустить самопроверку (--test)
+#   make demo      — собрать и прогнать меню по готовому сценарию (вывод в build/make/demo.log)
 #   make release   — собрать с оптимизацией -O2 в build/make-release/fms
 #
 # Ручной make clean не нужен — уборка автоматическая:
@@ -75,7 +76,7 @@ ifneq ($(shell cat $(FLAGS_STAMP) 2>/dev/null),$(FLAGS_NOW))
   $(shell rm -rf $(OUTDIR) && mkdir -p $(OUTDIR) && echo '$(FLAGS_NOW)' > $(FLAGS_STAMP))
 endif
 
-.PHONY: all run test release
+.PHONY: all run test demo release
 
 all: $(BIN)
 
@@ -99,6 +100,23 @@ run: $(BIN)
 
 test: $(BIN)
 	./$(BIN) --test
+
+# Сценарий для make demo: ответы меню по порядку. Вход ivan, ls, создание файла, просмотр, правка и откат,
+# поиск, корзина, блокировка, ссылка, вход root, резервная копия, отчёт, аудит, все исключения,
+# перемотка на 31 день и ls (в конце ожидается «[Сессия] ... истекла» — так и задумано).
+DEMO_INPUT := 1 1 ivan Secret123  2 1 ""  3 2 "" test.txt 'привет'  4 test.txt д \
+              5 1 test.txt 'вторая версия'  5 4 test.txt 1  10 '*.txt' "" 0 0 н \
+              7 1 test.txt  7 2  8 1 docs/notes.txt  9 1 docs/report.md 3 2 н \
+              1 1 root Admin1234  11 2  13 7 1  12 14  16  15 2 31  2 1 ""  0
+DEMO_LOG := $(OUTDIR)/demo.log
+
+demo: $(BIN)
+	@printf '%s\n' $(DEMO_INPUT) | ./$(BIN) > $(DEMO_LOG) 2>&1
+	@if grep -nE "\[(Ошибка|Системная ошибка)\]" $(DEMO_LOG); then \
+	    echo "Меню: есть ошибки (строки выше), полный вывод — $(DEMO_LOG)"; exit 1; fi
+	@n=$$(grep -cE "^ +[0-9]+\. [A-Za-z]+Exception" $(DEMO_LOG)); \
+	if [ "$$n" != 18 ]; then echo "Меню: в демонстрации $$n исключений из 18, вывод — $(DEMO_LOG)"; exit 1; fi
+	@echo "Меню: прогон прошёл без ошибок, все 18 исключений показаны. Полный вывод — $(DEMO_LOG)"
 
 release:
 	$(MAKE) MODE=release

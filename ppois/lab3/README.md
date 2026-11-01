@@ -41,6 +41,7 @@ cmake -B build && cmake --build build
 make           # build/make/fms, с нуля около 1,5 с
 make run       # собрать и запустить меню
 make test      # собрать и запустить --test
+make demo      # прогнать меню по готовому сценарию; вывод в build/make/demo.log
 make release   # с оптимизацией -O2: build/make-release/fms
 ```
 
