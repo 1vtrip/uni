@@ -159,14 +159,52 @@ public:
      * (у администратора — все). Вернуть, сколько удалено.
      */
     int emptyTrash(bool onlyExpired = true);
+    /**
+     * @brief Сжать файлы в новый архив. Архив сначала собирается отдельным объектом (compress принимает
+     * const File&, поэтому подходит любой файл), и только потом занимает место и попадает в папку.
+     * @throws InvalidOperationException пустой список или не файл. @throws EntryAlreadyExistsException два файла
+     * с одним именем. И исключения createTextFile.
+     */
     int archive(const std::vector<std::string>& paths, const std::string& dirPath, const std::string& name);
-    void lock(const std::string& path);
+    /**
+     * @brief Заблокировать файл на 30 минут: Exclusive требует права записи, Shared — чтения.
+     * @throws FileLockedException мешает чужая блокировка.
+     */
+    void lock(const std::string& path, bool exclusive = true);
+    /** @brief Снять свою блокировку. @throws InvalidOperationException её нет. */
     void unlock(const std::string& path);
-    std::string share(const std::string& path, int days, int maxUses);
+    /**
+     * @brief Ссылка общего доступа на файл; вернуть токен. Пользователю и гостю решает виртуальный canShare(),
+     * админу можно, служебной записи нельзя. Нужно то право, которое отдаётся.
+     * @throws AccessDeniedException / InvalidOperationException (не файл или неверные параметры ссылки).
+     */
+    std::string share(const std::string& path, int days, int maxUses, bool allowWrite = false);
+    /**
+     * @brief Перейти по ссылке (вход не нужен) и вернуть ID файла; создателю уходит уведомление.
+     * @throws EntryNotFoundException нет такой ссылки. @throws ShareLinkExpiredException ссылка не действует.
+     */
     int openShared(const std::string& token);
-    SearchResult search(const SearchQuery& q) const;
+    /** @brief Открыть по ссылке и вернуть текст (у не текстового файла — preview). */
+    std::string readShared(const std::string& token);
+    /** @brief Записать текст по ссылке с правом записи; квоту платит владелец. @throws AccessDeniedException ссылка только для чтения. */
+    void writeShared(const std::string& token, const std::string& content);
+    /**
+     * @brief Поиск по всем элементам. Показывается только то, что стоит в дереве (не в корзине) и что
+     * пользователь может читать: иначе поиск выдавал бы имена файлов из чужих закрытых папок.
+     */
+    SearchResult search(const SearchQuery& q);
+    /**
+     * @brief Резервная копия всех файлов по политике; запускать может тот, кто читает всё (админ уровня 2+, backup).
+     * @throws AccessDeniedException / BackupFailedException (сумма больше предела).
+     */
     int runBackup();
-    void verifyIntegrity(const std::string& path) const;
+    /**
+     * @brief Проверить текстовый файл: сумма совпадает с последней версией и все версии целы.
+     * @throws CorruptedFileException / InvalidOperationException (не текстовый файл).
+     */
+    void verifyIntegrity(const std::string& path);
+    /** @brief Демонстрация сбоя диска: испортить последнюю версию файла, чтобы verifyIntegrity нашёл повреждение. */
+    void simulateCorruption(const std::string& path);
 
     // доступ для отчётов и меню
     const std::string& getName() const;
@@ -180,6 +218,9 @@ public:
     const NotificationService& getNotifications() const;
     const StorageDevice& getDevice() const;
     const AuthService& getAuth() const;
+    const LockManager& getLocks() const;
+    const ShareManager& getShares() const;
+    const BackupManager& getBackups() const;
 
 private:
     std::string name_;
@@ -236,6 +277,14 @@ private:
     bool sharesGroup(int userId, int ownerId) const;
     /** @brief Решение без админских прав: ACL (запрет важнее всего), иначе rwx. */
     bool allowedByRules(int entryId, Permission::Access a, int userId) const;
+    /** @brief Почему нельзя (например, "открыть папку /home/ivan"); пусто — можно. Без аудита, поэтому const. */
+    std::string denialReason(int entryId, Permission::Access a, int userId) const;
+    /** @brief Файл любого типа через ссылку на File (для Compressor). @throws InvalidOperationException не файл. */
+    const File& file(int id) const;
+    /** @brief Добавить e в результат, если он подходит, стоит в дереве и пользователь может его читать. */
+    void addIfVisible(SearchResult& result, const SearchQuery& q, const FsEntry& e, int userId) const;
+    /** @brief Положить в ids и sizes элемент e, если он стоит в дереве и политика копирования его берёт. */
+    void addIfBackedUp(std::vector<int>& ids, std::vector<DataSize>& sizes, const FsEntry& e) const;
     /**
      * @brief Порядок: canReadAnyFile для чтения -> право x на каждой папке по пути -> ACL -> rwx.
      * Отказ пишется в аудит. @throws AccessDeniedException.

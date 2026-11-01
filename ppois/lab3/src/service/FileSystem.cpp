@@ -327,25 +327,23 @@ bool FileSystem::allowedByRules(int entryId, Permission::Access a, int userId) c
 
 /**
  * @brief Право x нужно на каждой папке по пути, как в Unix: иначе гость прочитал бы файл rw-r--r--
- * из закрытой /home/ivan (rwx------), просто зная путь. Метод не const: отказ пишется в аудит.
+ * из закрытой /home/ivan (rwx------), просто зная путь.
  */
+std::string FileSystem::denialReason(int entryId, Permission::Access a, int userId) const {
+    if (a == Permission::Access::Read && account(userId).canReadAnyFile()) return "";
+    for (int dir = entry(entryId).getParentId(); dir != 0; dir = entry(dir).getParentId())
+        if (!allowedByRules(dir, Permission::Access::Execute, userId)) return "открыть папку " + pathOf(dir);
+    if (allowedByRules(entryId, a, userId)) return "";
+    const char* verb = a == Permission::Access::Read ? "читать " : a == Permission::Access::Write ? "изменять " : "выполнять ";
+    return verb + pathOf(entryId);
+}
+
+/** @brief Метод не const: отказ пишется в аудит. */
 void FileSystem::checkAccess(int entryId, Permission::Access a, int userId) {
-    const Account& acc = account(userId);
-    if (a == Permission::Access::Read && acc.canReadAnyFile()) return;
-    std::string what;
-    int deniedAt = 0;   // где отказали: папка по пути или сам элемент
-    for (int dir = entry(entryId).getParentId(); dir != 0 && deniedAt == 0; dir = entry(dir).getParentId())
-        if (!allowedByRules(dir, Permission::Access::Execute, userId)) deniedAt = dir;
-    if (deniedAt != 0) {
-        what = "открыть папку " + pathOf(deniedAt);
-    } else if (!allowedByRules(entryId, a, userId)) {
-        deniedAt = entryId;
-        const char* verb = a == Permission::Access::Read ? "читать " : a == Permission::Access::Write ? "изменять " : "выполнять ";
-        what = verb + pathOf(entryId);
-    }
-    if (deniedAt == 0) return;
+    std::string what = denialReason(entryId, a, userId);
+    if (what.empty()) return;
     audit_.record(now_, userId, "access", pathOf(entryId), false, "нельзя " + what);
-    throw AccessDeniedException(acc.getLogin(), what);
+    throw AccessDeniedException(account(userId).getLogin(), what);
 }
 
 // ===================== место: квота и устройство =====================
@@ -841,6 +839,206 @@ int FileSystem::emptyTrash(bool onlyExpired) {
     return (int)ids.size();
 }
 
+// ===================== блокировки =====================
+
+/** @brief LockManager знает только "#id", поэтому исключение пересобирается с путём и держателем блокировки. */
+void FileSystem::lock(const std::string& path, bool exclusive) {
+    int userId = currentUserId();
+    int id = followLink(resolve(path));
+    if (entry(id).typeChar() != '-') throw InvalidOperationException("блокировать можно только файлы");
+    checkAccess(id, exclusive ? Permission::Access::Write : Permission::Access::Read, userId);
+    FileLock::LockMode mode = exclusive ? FileLock::LockMode::Exclusive : FileLock::LockMode::Shared;
+    try {
+        locks_.acquire(id, userId, mode, now_, 30);
+    } catch (const FileLockedException&) {
+        int holder = foreignLockOwner(id, userId, !exclusive);   // Shared мешает только чужая Exclusive
+        audit_.record(now_, userId, "lock", pathOf(id), false, "занят пользователем #" + std::to_string(holder));
+        throw FileLockedException(pathOf(id), holder);
+    }
+    audit_.record(now_, userId, "lock", pathOf(id), true, FileLock::modeName(mode));
+}
+
+void FileSystem::unlock(const std::string& path) {
+    int userId = currentUserId();
+    int id = followLink(resolve(path));
+    if (!locks_.release(id, userId)) throw InvalidOperationException("у вас нет блокировки " + pathOf(id));
+    audit_.record(now_, userId, "unlock", pathOf(id), true);
+}
+
+// ===================== общий доступ =====================
+
+/** @brief canShare() виртуальный: у гостя он false, поэтому гость получает отказ без отдельной проверки типа. */
+std::string FileSystem::share(const std::string& path, int days, int maxUses, bool allowWrite) {
+    int userId = currentUserId();
+    int id = followLink(resolve(path));
+    if (entry(id).typeChar() != '-') throw InvalidOperationException("делиться можно только файлами");
+    const Account& acc = account(userId);
+    bool may = hasQuota(userId) ? quotaOwner(userId).canShare() : acc.canManageUsers();
+    if (!may) {
+        audit_.record(now_, userId, "share", pathOf(id), false, acc.role() + " не может делиться");
+        throw AccessDeniedException(acc.getLogin(), "делиться файлами (" + acc.role() + ")");
+    }
+    Permission::Access a = allowWrite ? Permission::Access::Write : Permission::Access::Read;
+    checkAccess(id, a, userId);
+    std::string token = shares_.create(id, userId, a, now_, days, maxUses);
+    audit_.record(now_, userId, "share", pathOf(id), true, token);
+    return token;
+}
+
+/** @brief Вход не нужен — для того ссылки и нужны; кто открыл, известно только если он вошёл. */
+int FileSystem::openShared(const std::string& token) {
+    int actor = 0;
+    if (isLoggedIn()) actor = auth_.session(sessionId_).getUserId();
+    ShareLink& link = shares_.find(token);
+    int id;
+    try {
+        id = link.use(now_);
+    } catch (const ShareLinkExpiredException& e) {
+        audit_.record(now_, actor, "open-link", token, false, e.what());
+        throw;
+    }
+    notifier_.shareOpened(link, now_);
+    audit_.record(now_, actor, "open-link", pathOf(id), true, token);
+    return id;
+}
+
+std::string FileSystem::readShared(const std::string& token) {
+    int id = openShared(token);
+    for (size_t i = 0; i < textFiles_.size(); ++i)
+        if (textFiles_[i].getId() == id) return textFiles_[i].getContent();
+    return entry(id).preview(200);
+}
+
+/** @brief Права проверяются до перехода: ссылка только для чтения не должна тратить переход. */
+void FileSystem::writeShared(const std::string& token, const std::string& content) {
+    if (!shares_.find(token).allowsWrite())
+        throw AccessDeniedException("по ссылке " + token, "изменять файл (ссылка только для чтения)");
+    int actor = 0;
+    if (isLoggedIn()) actor = auth_.session(sessionId_).getUserId();
+    int id = openShared(token);
+    textFile(id);
+    writeContent(id, content, actor, "По ссылке");
+}
+
+// ===================== поиск =====================
+
+void FileSystem::addIfVisible(SearchResult& result, const SearchQuery& q, const FsEntry& e, int userId) const {
+    if (e.getId() == ROOT_ID || !q.matches(e) || !isInTree(e.getId())) return;
+    if (denialReason(e.getId(), Permission::Access::Read, userId).empty()) result.add(e);
+}
+
+SearchResult FileSystem::search(const SearchQuery& q) {
+    int userId = currentUserId();
+    SearchResult result;
+    for (size_t i = 0; i < directories_.size(); ++i) addIfVisible(result, q, directories_[i], userId);
+    for (size_t i = 0; i < textFiles_.size(); ++i)   addIfVisible(result, q, textFiles_[i], userId);
+    for (size_t i = 0; i < images_.size(); ++i)      addIfVisible(result, q, images_[i], userId);
+    for (size_t i = 0; i < executables_.size(); ++i) addIfVisible(result, q, executables_[i], userId);
+    for (size_t i = 0; i < archives_.size(); ++i)    addIfVisible(result, q, archives_[i], userId);
+    for (size_t i = 0; i < symlinks_.size(); ++i)    addIfVisible(result, q, symlinks_[i], userId);
+    return result;
+}
+
+// ===================== архив =====================
+
+/** @brief Все четыре типа файлов — наследники File, поэтому возвращаются одной ссылкой на базовый класс. */
+const File& FileSystem::file(int id) const {
+    for (size_t i = 0; i < textFiles_.size(); ++i)   if (textFiles_[i].getId() == id)   return textFiles_[i];
+    for (size_t i = 0; i < images_.size(); ++i)      if (images_[i].getId() == id)      return images_[i];
+    for (size_t i = 0; i < executables_.size(); ++i) if (executables_[i].getId() == id) return executables_[i];
+    for (size_t i = 0; i < archives_.size(); ++i)    if (archives_[i].getId() == id)    return archives_[i];
+    throw InvalidOperationException(pathOf(id) + " — не файл");
+}
+
+int FileSystem::archive(const std::vector<std::string>& paths, const std::string& dirPath, const std::string& name) {
+    int userId = currentUserId();
+    if (paths.empty()) throw InvalidOperationException("нечего архивировать: список файлов пуст");
+    int dest = resolve(dirPath);
+    ArchiveFile result(nextEntryId_, name, dest, userId, Permission::forFile(), now_, "zip");
+    for (size_t i = 0; i < paths.size(); ++i) {
+        int id = followLink(resolve(paths[i]));
+        const File& f = file(id);
+        checkAccess(id, Permission::Access::Read, userId);
+        int holder = foreignLockOwner(id, userId, true);
+        if (holder != 0) throw FileLockedException(pathOf(id), holder);
+        result.addEntry(compressor_.compress(f), now_);
+    }
+    checkCanCreate(dest, name, userId);
+    reserveSpace(userId, result.size());
+    ++nextEntryId_;
+    archives_.push_back(result);
+    directory(dest).addChild(result.getId());
+    audit_.record(now_, userId, "archive", pathOf(result.getId()), true,
+                  std::to_string(result.entryCount()) + " файлов, " + result.originalTotal().toString() + " -> "
+                      + result.size().toString());
+    if (hasQuota(userId)) notifier_.quotaWarning(quotaOwner(userId), now_);
+    return result.getId();
+}
+
+// ===================== резервные копии и целостность =====================
+
+void FileSystem::addIfBackedUp(std::vector<int>& ids, std::vector<DataSize>& sizes, const FsEntry& e) const {
+    if (!backups_.getPolicy().shouldInclude(e) || !isInTree(e.getId())) return;
+    ids.push_back(e.getId());
+    sizes.push_back(e.size());
+}
+
+int FileSystem::runBackup() {
+    int userId = currentUserId();
+    const Account& acc = account(userId);
+    if (!acc.canReadAnyFile()) {
+        audit_.record(now_, userId, "backup", "/", false, "нет права читать все файлы");
+        throw AccessDeniedException(acc.getLogin(), "запускать резервное копирование");
+    }
+    std::vector<int> ids;
+    std::vector<DataSize> sizes;
+    for (size_t i = 0; i < textFiles_.size(); ++i)   addIfBackedUp(ids, sizes, textFiles_[i]);
+    for (size_t i = 0; i < images_.size(); ++i)      addIfBackedUp(ids, sizes, images_[i]);
+    for (size_t i = 0; i < executables_.size(); ++i) addIfBackedUp(ids, sizes, executables_[i]);
+    for (size_t i = 0; i < archives_.size(); ++i)    addIfBackedUp(ids, sizes, archives_[i]);
+    try {
+        int backupId = backups_.runBackup(ids, sizes, now_);
+        audit_.record(now_, userId, "backup", "/", true, "копия #" + std::to_string(backupId) + ", файлов "
+                                                             + std::to_string(ids.size()));
+        return backupId;
+    } catch (const BackupFailedException& e) {
+        audit_.record(now_, userId, "backup", "/", false, e.what());
+        throw;
+    }
+}
+
+/**
+ * @brief Две проверки: сумма содержимого совпадает с последней версией (файл не подменили в обход версий)
+ * и каждая версия цела (её снимок не испорчен).
+ */
+void FileSystem::verifyIntegrity(const std::string& path) {
+    int userId = currentUserId();
+    int id = followLink(resolve(path));
+    checkAccess(id, Permission::Access::Read, userId);
+    const TextFile& f = textFile(id);
+    const VersionHistory& h = historyOf(id);
+    std::string problem;
+    if (!f.verify(h.latest().getChecksum())) problem = "не совпадает с последней версией";
+    const std::vector<FileVersion>& versions = h.getVersions();
+    for (size_t i = 0; i < versions.size() && problem.empty(); ++i)
+        if (!versions[i].isIntact()) problem = "версия " + std::to_string(versions[i].getNumber()) + " повреждена";
+    if (!problem.empty()) {
+        audit_.record(now_, userId, "verify", pathOf(id), false, problem);
+        throw CorruptedFileException(pathOf(id) + " (" + problem + ")");
+    }
+    audit_.record(now_, userId, "verify", pathOf(id), true);
+}
+
+void FileSystem::simulateCorruption(const std::string& path) {
+    int userId = currentUserId();
+    int id = followLink(resolve(path));
+    checkAccess(id, Permission::Access::Write, userId);
+    textFile(id);
+    VersionHistory& h = historyOf(id);
+    h.get(h.latest().getNumber()).corrupt("<сбой диска>");
+    audit_.record(now_, userId, "corrupt", pathOf(id), true, "имитация сбоя диска");
+}
+
 // ===================== доступ для отчётов и меню =====================
 
 const std::string& FileSystem::getName() const { return name_; }
@@ -854,3 +1052,6 @@ const RecycleBin& FileSystem::getTrash() const { return trash_; }
 const NotificationService& FileSystem::getNotifications() const { return notifier_; }
 const StorageDevice& FileSystem::getDevice() const { return device_; }
 const AuthService& FileSystem::getAuth() const { return auth_; }
+const LockManager& FileSystem::getLocks() const { return locks_; }
+const ShareManager& FileSystem::getShares() const { return shares_; }
+const BackupManager& FileSystem::getBackups() const { return backups_; }
