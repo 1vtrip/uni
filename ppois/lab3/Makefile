@@ -3,7 +3,12 @@
 #   make run       — собрать и запустить меню
 #   make test      — собрать и запустить самопроверку (--test)
 #   make release   — собрать с оптимизацией -O2 в build/make-release/fms
-#   make clean     — удалить всё, что собрал этот Makefile
+#
+# Ручной make clean не нужен — уборка автоматическая:
+#   - удалили или переименовали .cpp — его старые .o и .d удаляются при следующей сборке;
+#   - удалили заголовок — -MP не даёт make упасть на отсутствующем файле;
+#   - поменялись флаги компиляции (здесь или через EXTRA=...) — папка сборки очищается сама
+#     и всё собирается заново.
 #
 # Почему быстро:
 #   1) все .cpp компилируются параллельно — по числу ядер;
@@ -26,7 +31,8 @@ endif
 CCACHE   := $(shell command -v ccache 2>/dev/null)
 export CCACHE_SLOPPINESS := pch_defines,time_macros,include_file_mtime,include_file_ctime
 CXX      := $(CCACHE) c++
-BASEFLAGS := -std=c++17 -Wall -Wextra $(OPT)
+EXTRA    ?=
+BASEFLAGS := -std=c++17 -Wall -Wextra $(OPT) $(EXTRA)
 JOBS     := $(shell sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
 MAKEFLAGS += -j$(JOBS) --no-print-directory
 
@@ -49,14 +55,34 @@ OBJS := $(SRCS:src/%.cpp=$(OUTDIR)/%.o)
 DEPS := $(OBJS:.o=.d)
 BIN  := $(OUTDIR)/fms
 
-.PHONY: all run test release clean
+# Автоуборка 1: объектные файлы, у которых больше нет исходника (.cpp удалили или переименовали).
+STALE := $(filter-out $(OBJS),$(shell find $(OUTDIR) -name '*.o' 2>/dev/null))
+ifneq ($(STALE),)
+  $(shell rm -f $(STALE) $(STALE:.o=.d))
+  $(info Удалены устаревшие объектные файлы: $(STALE))
+endif
+
+# Автоуборка 2: в папке сборки хранится строка флагов, с которыми она собрана. Если флаги изменились,
+# папка очищается целиком — это и есть автоматический clean, и всё соберётся заново с новыми флагами.
+# Сравнивается сам текст, а не время файлов: make на macOS видит время с точностью до секунды
+# и при быстрых повторных сборках мог бы счесть часть старых .o свежими.
+FLAGS_STAMP := $(OUTDIR)/.flags
+FLAGS_NOW   := $(strip $(CXX) $(CXXFLAGS))
+ifneq ($(shell cat $(FLAGS_STAMP) 2>/dev/null),$(FLAGS_NOW))
+  ifneq ($(wildcard $(FLAGS_STAMP)),)
+    $(info Флаги сборки изменились — $(OUTDIR) очищена, всё соберётся заново)
+  endif
+  $(shell rm -rf $(OUTDIR) && mkdir -p $(OUTDIR) && echo '$(FLAGS_NOW)' > $(FLAGS_STAMP))
+endif
+
+.PHONY: all run test release
 
 all: $(BIN)
 
 $(BIN): $(OBJS)
 	$(CXX) $(OBJS) -o $@
 
-# Каждый .o зависит от предкомпилированного заголовка: при смене флагов он пересоберётся первым.
+# Каждый .o зависит от предкомпилированного заголовка: он собирается первым.
 $(OUTDIR)/%.o: src/%.cpp $(PCH)
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -76,8 +102,5 @@ test: $(BIN)
 
 release:
 	$(MAKE) MODE=release
-
-clean:
-	rm -rf build/make build/make-release
 
 -include $(DEPS)
