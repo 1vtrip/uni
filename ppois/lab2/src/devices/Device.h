@@ -40,7 +40,8 @@ public:
     const DeviceCategory& getCategory() const;
     const Date& getPurchased() const;
 
-    bool operator==(const Device& other) const;   // по серийному номеру
+    /** @brief Устройства равны, если совпадает серийный номер. */
+    bool operator==(const Device& other) const;
     bool operator!=(const Device& other) const;
 
 protected:
