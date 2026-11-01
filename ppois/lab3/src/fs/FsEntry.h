@@ -4,6 +4,7 @@
 #include "core/DataSize.h"
 #include "core/Timestamp.h"
 #include "interfaces/IPrintable.h"
+#include "interfaces/ISizeable.h"
 #include "meta/Metadata.h"
 #include "meta/Permission.h"
 
@@ -11,7 +12,7 @@
  * @brief Абстрактный элемент файловой системы: файл, папка или ссылка.
  * Связь с деревом только через ID: parentId_ — папка, в которой лежит элемент.
  */
-class FsEntry : public IPrintable {
+class FsEntry : public IPrintable, public ISizeable {
 public:
     /** @brief Имя не проверяется: его проверяет FileSystem перед созданием (у корня имя пустое). */
     FsEntry(int id, const std::string& name, int parentId, int ownerId,
@@ -20,8 +21,8 @@ public:
 
     /** @brief Название типа для пользователя: "Папка", "Текстовый файл" и т. д. */
     virtual std::string typeName() const = 0;
-    /** @brief Размер самого элемента; у каждого типа считается по-своему. */
-    virtual DataSize size() const = 0;
+    /** @brief Размер самого элемента; у каждого типа считается по-своему. Из ISizeable, остаётся чисто виртуальным. */
+    DataSize size() const override = 0;
     /** @brief Папка ли это; true только у Directory. */
     virtual bool isDirectory() const;
     /** @brief Символ типа в начале строки print, как в ls -l: '-' файл, 'd' папка, 'l' ссылка. */

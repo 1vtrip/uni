@@ -5,13 +5,14 @@
 #include "core/DataSize.h"
 #include "core/Timestamp.h"
 #include "interfaces/IPrintable.h"
+#include "interfaces/ISizeable.h"
 
 /**
  * @brief Одна резервная копия: какие файлы в неё вошли, общий размер и статус.
  * Статус — маленький конечный автомат: InProgress -> Completed или InProgress -> Failed;
  * оба конечных состояния окончательные.
  */
-class Backup : public IPrintable {
+class Backup : public IPrintable, public ISizeable {
 public:
     enum class Status { InProgress, Completed, Failed };
 
@@ -31,7 +32,7 @@ public:
     /** @brief Можно ли восстанавливать из копии: только Completed. */
     bool isUsable() const;
     /** @brief Общий размер файлов в копии. */
-    DataSize size() const;
+    DataSize size() const override;
     int entryCount() const;
     /** @brief "выполняется", "готова" или "ошибка". */
     static const char* statusName(Status s);

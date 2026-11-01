@@ -2,13 +2,14 @@
 #include <iostream>
 #include <vector>
 #include "core/DataSize.h"
+#include "interfaces/ISizeable.h"
 #include "storage/TrashItem.h"
 
 /**
  * @brief Корзина: удалённые элементы хранятся retentionDays_ дней, общий размер не больше maxSize_.
  * Корзина хранит только записи; сами объекты удаляет FileSystem по ID, которые возвращают add и purgeExpired.
  */
-class RecycleBin {
+class RecycleBin : public ISizeable {
 public:
     /** @brief @throws InvalidOperationException retentionDays не положительный. */
     RecycleBin(int retentionDays = 30, const DataSize& maxSize = DataSize::fromGB(1));
@@ -25,7 +26,7 @@ public:
     /** @brief Удалить записи с истёкшим сроком и вернуть их ID (сами объекты удалит FileSystem). */
     std::vector<int> purgeExpired(const Timestamp& now);
     /** @brief Суммарный размер всех записей. */
-    DataSize size() const;
+    DataSize size() const override;
     bool contains(int entryId) const;
     /** @brief Записи, удалённые пользователем userId. */
     std::vector<TrashItem> itemsOf(int userId) const;
