@@ -77,6 +77,37 @@ public:
     /** @brief ID вошедшего пользователя, заодно отмечает активность. @throws SessionExpiredException не вошли или сессия истекла. */
     int currentUserId();
     bool isLoggedIn() const;
+    /** @brief ID вошедшего без отметки активности (для заголовка меню); 0 — никто не вошёл или сессия истекла. */
+    int peekUserId() const;
+    /**
+     * @brief Сменить свой пароль. Неверный старый пароль — неудачная попытка (5 подряд блокируют).
+     * @throws AuthenticationException / WeakPasswordException.
+     */
+    void changePassword(const std::string& oldPassword, const std::string& newPassword);
+
+    // администрирование (нужно canManageUsers)
+    /** @brief Новая группа; вернуть её ID. @throws AccessDeniedException / EntryAlreadyExistsException / InvalidOperationException (имя). */
+    int createGroup(const std::string& name);
+    /** @brief Добавить пользователя в группу (и группу — в его список). @throws EntryNotFoundException. */
+    void addToGroup(const std::string& groupName, const std::string& login);
+    /** @brief Убрать пользователя из группы. @throws EntryNotFoundException. */
+    void removeFromGroup(const std::string& groupName, const std::string& login);
+    /** @brief Новый лимит квоты. @throws InvalidOperationException у записи нет квоты или лимит меньше занятого. */
+    void setQuota(const std::string& login, const DataSize& limit);
+    /** @brief Заблокировать или разблокировать учётную запись (себя заблокировать нельзя). */
+    void setBlocked(const std::string& login, bool blocked);
+    /** @brief Продлить гостевой доступ на days дней. @throws InvalidOperationException не гость или days <= 0. */
+    void extendGuest(const std::string& login, int days);
+    /**
+     * @brief Правило ACL для файла или папки: кому (логин или имя группы), какое действие, разрешить или запретить.
+     * Добавлять может владелец или администратор. @throws AccessDeniedException / EntryNotFoundException.
+     */
+    void setAclRule(const std::string& path, const std::string& principal, bool isGroup,
+                    Permission::Access access, bool allow);
+    /** @brief Убрать все правила ACL для адресата; вернуть, сколько удалено. */
+    int clearAclRules(const std::string& path, const std::string& principal, bool isGroup);
+    /** @brief Правила ACL элемента (пустой список, если их нет). */
+    AccessControlList aclOf(const std::string& path) const;
 
     // дерево
     /** @brief Элемент по ID как ссылка на базовый класс. @throws EntryNotFoundException такого нет. */
@@ -94,6 +125,8 @@ public:
     int followLink(int id) const;
     /** @brief Полный путь элемента: "/home/ivan/a.txt". */
     std::string pathOf(int id) const;
+    /** @brief Свойства элемента (как ls -l для одного файла): нужно право x на папках по пути. */
+    const FsEntry& stat(const std::string& path);
     /** @brief ID элементов папки (нужно право чтения папки и x на папках по пути). */
     std::vector<int> list(const std::string& dirPath);
     /** @brief Размер папки со всем содержимым: рекурсия по ID. */
@@ -109,6 +142,14 @@ public:
     int createDirectory(const std::string& parentPath, const std::string& name);
     /** @brief Создать текстовый файл (rw-r--r--) с первой версией "Создан". Исключения как у createDirectory. */
     int createTextFile(const std::string& dirPath, const std::string& name, const std::string& content);
+    /** @brief Создать исполняемый файл (rwxr-xr-x). @throws InvalidOperationException неверная версия. */
+    int createExecutable(const std::string& dirPath, const std::string& name, const std::string& platform,
+                         const std::string& version, const DataSize& size, bool isSigned);
+    /**
+     * @brief Создать ссылку на существующий элемент. Размер ссылки — длина пути, он занимает квоту.
+     * @throws InvalidPathException цели нет. И исключения createDirectory.
+     */
+    int createSymlink(const std::string& dirPath, const std::string& name, const std::string& targetPath);
     /** @brief Создать картинку; объект создаётся до занятия места, его конструктор проверяет размеры. */
     int createImage(const std::string& dirPath, const std::string& name, int w, int h, const std::string& format);
     /**
@@ -260,9 +301,16 @@ private:
     Compressor compressor_;
     int nextEntryId_;
     int nextAccountId_;
+    int nextGroupId_;
     int sessionId_;                                  // 0 = никто не вошёл
 
     // вспомогательные: учётные записи
+    /** @brief ID вошедшего администратора. @throws SessionExpiredException / AccessDeniedException (не canManageUsers). */
+    int requireAdmin(const std::string& action);
+    /** @brief ID учётной записи по логину. @throws EntryNotFoundException такой нет. */
+    int accountIdOf(const std::string& login) const;
+    /** @brief Группа по имени. @throws EntryNotFoundException такой нет. */
+    UserGroup& groupNamed(const std::string& name);
     /** @brief Неконстантная учётная запись по ID (для входа: checkPassword меняет счётчик). */
     Account& accountRef(int id);
     /**

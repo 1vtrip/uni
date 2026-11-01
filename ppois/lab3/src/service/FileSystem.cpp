@@ -1,6 +1,7 @@
 #include "service/FileSystem.h"
 #include "core/Path.h"
 #include "exceptions/Exceptions.h"
+#include <sstream>
 
 // ===================== конструктор и время =====================
 
@@ -9,7 +10,7 @@ FileSystem::FileSystem(const std::string& name, const StorageDevice& device, con
       users_(), guests_(), admins_(), services_(), superUsers_(), groups_(), device_(device), acls_(), versions_(),
       trash_(30, DataSize::fromGB(1)), locks_(), audit_(1000), shares_(), backups_(BackupPolicy()),
       auth_(PasswordPolicy()), notifier_(), compressor_(), nextEntryId_(HOME_ID + 1), nextAccountId_(1),
-      sessionId_(0) {
+      nextGroupId_(1), sessionId_(0) {
     // владелец корня и /home — система (ID 0): обычные пользователи туда не пишут
     directories_.push_back(Directory(ROOT_ID, "", 0, 0, Permission::forDirectory(), now));
     directories_.push_back(Directory(HOME_ID, "home", ROOT_ID, 0, Permission::forDirectory(), now));
@@ -348,6 +349,8 @@ std::string FileSystem::denialReason(int entryId, Permission::Access a, int user
     for (int dir = entry(entryId).getParentId(); dir != 0; dir = entry(dir).getParentId())
         if (!allowedByRules(dir, Permission::Access::Execute, userId)) return "открыть папку " + pathOf(dir);
     if (allowedByRules(entryId, a, userId)) return "";
+    // у папки право x значит «войти в неё», а не «выполнить»
+    if (a == Permission::Access::Execute && entry(entryId).isDirectory()) return "открыть папку " + pathOf(entryId);
     const char* verb = a == Permission::Access::Read ? "читать " : a == Permission::Access::Write ? "изменять " : "выполнять ";
     return verb + pathOf(entryId);
 }
@@ -1053,6 +1056,201 @@ void FileSystem::simulateCorruption(const std::string& path) {
     VersionHistory& h = historyOf(id);
     h.get(h.latest().getNumber()).corrupt("<сбой диска>");
     audit_.record(now_, userId, "corrupt", pathOf(id), true, "имитация сбоя диска");
+}
+
+// ===================== для меню: текущий пользователь, пароль, свойства =====================
+
+int FileSystem::peekUserId() const {
+    if (!isLoggedIn()) return 0;
+    return auth_.session(sessionId_).getUserId();
+}
+
+/** @brief Если неверный старый пароль заблокировал запись, сессия закрывается, а владельцу уходит предупреждение. */
+void FileSystem::changePassword(const std::string& oldPassword, const std::string& newPassword) {
+    int userId = currentUserId();
+    Account& acc = accountRef(userId);
+    bool wasBlocked = acc.isBlocked();
+    try {
+        acc.changePassword(oldPassword, newPassword, auth_.getPolicy());
+    } catch (const FileSystemException& e) {
+        audit_.record(now_, userId, "passwd", acc.getLogin(), false, e.what());
+        if (!wasBlocked && acc.isBlocked()) {
+            notifier_.securityAlert(userId, "учётная запись заблокирована при смене пароля", now_);
+            logout();
+        }
+        throw;
+    }
+    audit_.record(now_, userId, "passwd", acc.getLogin(), true);
+}
+
+/** @brief Свойства — это не чтение содержимого: нужно только право x на папках по пути, как у ls -l. */
+const FsEntry& FileSystem::stat(const std::string& path) {
+    int userId = currentUserId();
+    int id = resolve(path);
+    int parent = entry(id).getParentId();
+    if (parent != 0 && !account(userId).canReadAnyFile()) checkAccess(parent, Permission::Access::Execute, userId);
+    return entry(id);
+}
+
+// ===================== создание: исполняемые файлы и ссылки =====================
+
+int FileSystem::createExecutable(const std::string& dirPath, const std::string& name, const std::string& platform,
+                                 const std::string& version, const DataSize& size, bool isSigned) {
+    int userId = currentUserId();
+    int dirId = resolve(dirPath);
+    checkCanCreate(dirId, name, userId);
+    ExecutableFile exe(nextEntryId_, name, dirId, userId, Permission(0755), now_, platform, version, size, isSigned);
+    reserveSpace(userId, exe.size());
+    ++nextEntryId_;
+    executables_.push_back(exe);
+    directory(dirId).addChild(exe.getId());
+    audit_.record(now_, userId, "create", pathOf(exe.getId()), true, exe.preview(0));
+    if (hasQuota(userId)) notifier_.quotaWarning(quotaOwner(userId), now_);
+    return exe.getId();
+}
+
+/** @brief Путь цели хранится нормализованным (через pathOf), а размер ссылки — его длина, и он занимает квоту. */
+int FileSystem::createSymlink(const std::string& dirPath, const std::string& name, const std::string& targetPath) {
+    int userId = currentUserId();
+    int dirId = resolve(dirPath);
+    checkCanCreate(dirId, name, userId);
+    int target = resolve(targetPath);
+    Symlink link(nextEntryId_, name, dirId, userId, Permission(0777), now_, pathOf(target), target);
+    reserveSpace(userId, link.size());
+    ++nextEntryId_;
+    symlinks_.push_back(link);
+    directory(dirId).addChild(link.getId());
+    audit_.record(now_, userId, "symlink", pathOf(link.getId()), true, "-> " + pathOf(target));
+    return link.getId();
+}
+
+// ===================== администрирование =====================
+
+int FileSystem::requireAdmin(const std::string& action) {
+    int userId = currentUserId();
+    const Account& acc = account(userId);
+    if (!acc.canManageUsers()) {
+        audit_.record(now_, userId, "admin", "", false, "нельзя " + action);
+        throw AccessDeniedException(acc.getLogin(), action);
+    }
+    return userId;
+}
+
+int FileSystem::accountIdOf(const std::string& login) const {
+    int id = findAccount(login);
+    if (id == 0) throw EntryNotFoundException("учётная запись " + login);
+    return id;
+}
+
+UserGroup& FileSystem::groupNamed(const std::string& name) {
+    for (size_t i = 0; i < groups_.size(); ++i) if (groups_[i].getName() == name) return groups_[i];
+    throw EntryNotFoundException("группа " + name);
+}
+
+/** @brief Объект группы создаётся до push_back: конструктор проверит имя, и при ошибке ничего не изменится. */
+int FileSystem::createGroup(const std::string& name) {
+    int userId = requireAdmin("создавать группы");
+    for (size_t i = 0; i < groups_.size(); ++i)
+        if (groups_[i].getName() == name) throw EntryAlreadyExistsException("группа " + name);
+    UserGroup group(nextGroupId_, name);
+    ++nextGroupId_;
+    groups_.push_back(group);
+    audit_.record(now_, userId, "group-create", name, true);
+    return group.getId();
+}
+
+/** @brief Связь двусторонняя: группа знает участников, учётная запись — свои группы (это нужно правам rwx и ACL). */
+void FileSystem::addToGroup(const std::string& groupName, const std::string& login) {
+    int userId = requireAdmin("менять состав групп");
+    UserGroup& group = groupNamed(groupName);
+    int id = accountIdOf(login);
+    group.addMember(id);
+    accountRef(id).joinGroup(group.getId());
+    audit_.record(now_, userId, "group-add", groupName, true, login);
+}
+
+void FileSystem::removeFromGroup(const std::string& groupName, const std::string& login) {
+    int userId = requireAdmin("менять состав групп");
+    UserGroup& group = groupNamed(groupName);
+    int id = accountIdOf(login);
+    if (!group.removeMember(id)) throw InvalidOperationException(login + " не состоит в группе " + groupName);
+    accountRef(id).leaveGroup(group.getId());
+    audit_.record(now_, userId, "group-remove", groupName, true, login);
+}
+
+void FileSystem::setQuota(const std::string& login, const DataSize& limit) {
+    int userId = requireAdmin("менять квоты");
+    int id = accountIdOf(login);
+    if (!hasQuota(id)) throw InvalidOperationException("у " + login + " нет квоты");
+    quotaOwner(id).getQuota().setLimit(limit);
+    audit_.record(now_, userId, "quota", login, true, limit.toString());
+}
+
+void FileSystem::setBlocked(const std::string& login, bool blocked) {
+    int userId = requireAdmin(blocked ? "блокировать учётные записи" : "разблокировать учётные записи");
+    int id = accountIdOf(login);
+    if (id == userId && blocked) throw InvalidOperationException("нельзя заблокировать самого себя");
+    Account& acc = accountRef(id);
+    if (blocked) acc.block();
+    else acc.unblock();
+    audit_.record(now_, userId, blocked ? "block" : "unblock", login, true);
+}
+
+void FileSystem::extendGuest(const std::string& login, int days) {
+    int userId = requireAdmin("продлевать гостевой доступ");
+    int id = accountIdOf(login);
+    for (size_t i = 0; i < guests_.size(); ++i) {
+        if (guests_[i].getId() != id) continue;
+        guests_[i].extend(days, now_);
+        audit_.record(now_, userId, "guest-extend", login, true, "+" + std::to_string(days) + " дн.");
+        return;
+    }
+    throw InvalidOperationException(login + " не гость");
+}
+
+/** @brief Новое правило заменяет старое для того же адресата и действия (AccessControlEntry::== без учёта allow). */
+void FileSystem::setAclRule(const std::string& path, const std::string& principal, bool isGroup,
+                            Permission::Access access, bool allow) {
+    int userId = currentUserId();
+    int id = resolve(path);
+    const Account& acc = account(userId);
+    if (entry(id).getOwnerId() != userId && !acc.canManageUsers()) {
+        audit_.record(now_, userId, "acl", pathOf(id), false, "не владелец");
+        throw AccessDeniedException(acc.getLogin(), "менять ACL " + path + " (не владелец)");
+    }
+    int principalId = isGroup ? groupNamed(principal).getId() : accountIdOf(principal);
+    AccessControlEntry rule(principalId, isGroup, access, allow);
+    size_t index = acls_.size();
+    for (size_t i = 0; i < acls_.size(); ++i)
+        if (acls_[i].getEntryId() == id) index = i;
+    if (index == acls_.size()) acls_.push_back(AccessControlList(id));
+    acls_[index].add(rule);
+    std::ostringstream text;
+    text << rule;
+    audit_.record(now_, userId, "acl", pathOf(id), true, text.str());
+}
+
+int FileSystem::clearAclRules(const std::string& path, const std::string& principal, bool isGroup) {
+    int userId = currentUserId();
+    int id = resolve(path);
+    const Account& acc = account(userId);
+    if (entry(id).getOwnerId() != userId && !acc.canManageUsers())
+        throw AccessDeniedException(acc.getLogin(), "менять ACL " + path + " (не владелец)");
+    int principalId = isGroup ? groupNamed(principal).getId() : accountIdOf(principal);
+    for (size_t i = 0; i < acls_.size(); ++i) {
+        if (acls_[i].getEntryId() != id) continue;
+        int removed = acls_[i].removeFor(principalId, isGroup);
+        audit_.record(now_, userId, "acl", pathOf(id), true, "удалено правил: " + std::to_string(removed));
+        return removed;
+    }
+    return 0;
+}
+
+AccessControlList FileSystem::aclOf(const std::string& path) const {
+    int id = resolve(path);
+    for (size_t i = 0; i < acls_.size(); ++i)
+        if (acls_[i].getEntryId() == id) return acls_[i];
+    return AccessControlList(id);
 }
 
 // ===================== доступ для отчётов и меню =====================
