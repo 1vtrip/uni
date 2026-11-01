@@ -76,11 +76,19 @@ public:
     /** @brief Элемент по ID как ссылка на базовый класс. @throws EntryNotFoundException такого нет. */
     const FsEntry& entry(int id) const;
     FsEntry& entry(int id);
-    /** @brief ID элемента по абсолютному пути. @throws InvalidPathException путь неверный или не найден. */
+    /**
+     * @brief ID элемента по абсолютному пути. Ссылки в пути не раскрываются (для этого followLink).
+     * @throws InvalidPathException путь неверный, относительный, не найден или в середине стоит не папка.
+     */
     int resolve(const std::string& path) const;
+    /**
+     * @brief Пройти цепочку ссылок до настоящего элемента; не ссылка возвращается как есть.
+     * @throws EntryNotFoundException ссылка битая. @throws InvalidOperationException цикл ссылок.
+     */
+    int followLink(int id) const;
     /** @brief Полный путь элемента: "/home/ivan/a.txt". */
     std::string pathOf(int id) const;
-    /** @brief ID элементов папки (нужно право чтения). */
+    /** @brief ID элементов папки (нужно право чтения папки и x на папках по пути). */
     std::vector<int> list(const std::string& dirPath);
     /** @brief Размер папки со всем содержимым: рекурсия по ID. */
     DataSize directorySize(int dirId) const;
@@ -171,7 +179,16 @@ private:
     TextFile& textFile(int id);
     /** @brief ID элемента с именем name в папке dirId, 0 — нет такого. */
     int findChild(int dirId, const std::string& name) const;
-    void checkAccess(int entryId, Permission::Access a, int userId);   // throws AccessDeniedException
+    const Symlink& symlink(int id) const;
+    /** @brief Есть ли у пользователя общая группа с владельцем: так понимается «группа» в правах rwx. */
+    bool sharesGroup(int userId, int ownerId) const;
+    /** @brief Решение без админских прав: ACL (запрет важнее всего), иначе rwx. */
+    bool allowedByRules(int entryId, Permission::Access a, int userId) const;
+    /**
+     * @brief Порядок: canReadAnyFile для чтения -> право x на каждой папке по пути -> ACL -> rwx.
+     * Отказ пишется в аудит. @throws AccessDeniedException.
+     */
+    void checkAccess(int entryId, Permission::Access a, int userId);
     void reserveSpace(int userId, const DataSize& size);             // квота + устройство
     void freeSpace(int ownerId, const DataSize& size);
     VersionHistory& historyOf(int fileId);

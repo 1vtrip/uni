@@ -215,6 +215,137 @@ int FileSystem::findChild(int dirId, const std::string& name) const {
     return 0;
 }
 
+const Symlink& FileSystem::symlink(int id) const {
+    for (size_t i = 0; i < symlinks_.size(); ++i) if (symlinks_[i].getId() == id) return symlinks_[i];
+    throw InvalidOperationException("#" + std::to_string(id) + " не ссылка");
+}
+
+// ===================== дерево: пути и размеры =====================
+
+/**
+ * @brief От корня по частям пути через findChild. Перед каждым шагом проверяется, что текущий элемент — папка:
+ * в "/home/ivan/a.txt/x" файл a.txt стоит там, где нужна папка.
+ */
+int FileSystem::resolve(const std::string& path) const {
+    Path p = Path::parse(path);
+    if (!p.isAbsolute()) throw InvalidPathException(path + " (нужен абсолютный путь)");
+    const std::vector<std::string>& parts = p.parts();
+    int current = ROOT_ID;
+    for (size_t i = 0; i < parts.size(); ++i) {
+        if (!entry(current).isDirectory())
+            throw InvalidPathException(path + " (" + entry(current).getName() + " — не папка)");
+        int next = findChild(current, parts[i]);
+        if (next == 0) throw InvalidPathException(path + " (не найдено: " + parts[i] + ")");
+        current = next;
+    }
+    return current;
+}
+
+/**
+ * @brief Цикл (a -> b -> a) ловится ограничением глубины: настоящая цепочка не бывает длиннее 20 ссылок.
+ * Symlink::resolve сам бросает EntryNotFoundException у битой ссылки, а entry() — если цель уже удалили.
+ */
+int FileSystem::followLink(int id) const {
+    const int maxDepth = 20;
+    int current = id;
+    for (int step = 0; step <= maxDepth; ++step) {
+        if (entry(current).typeChar() != 'l') return current;
+        current = symlink(current).resolve();
+        entry(current);
+    }
+    throw InvalidOperationException("цикл ссылок или слишком длинная цепочка: " + pathOf(id));
+}
+
+/** @brief Подъём по parentId до корня, имена собираются с конца; глубина ограничена на случай испорченных данных. */
+std::string FileSystem::pathOf(int id) const {
+    if (id == ROOT_ID) return "/";
+    std::vector<std::string> names;
+    int current = id;
+    for (int depth = 0; current != ROOT_ID && current != 0 && depth < 1000; ++depth) {
+        const FsEntry& e = entry(current);
+        names.push_back(e.getName());
+        current = e.getParentId();
+    }
+    std::string path;
+    for (int i = (int)names.size() - 1; i >= 0; --i) path += "/" + names[i];
+    return path;
+}
+
+std::vector<int> FileSystem::list(const std::string& dirPath) {
+    int userId = currentUserId();
+    int dirId = resolve(dirPath);
+    if (!entry(dirId).isDirectory()) throw InvalidPathException(dirPath + " (не папка)");
+    checkAccess(dirId, Permission::Access::Read, userId);
+    return directory(dirId).getChildIds();
+}
+
+/** @brief Рекурсия по ID: у папки берётся размер содержимого, у остальных — виртуальный size(). */
+DataSize FileSystem::directorySize(int dirId) const {
+    const Directory& dir = directory(dirId);
+    DataSize total = dir.size();
+    const std::vector<int>& children = dir.getChildIds();
+    for (size_t i = 0; i < children.size(); ++i) {
+        const FsEntry& child = entry(children[i]);
+        if (child.isDirectory()) total += directorySize(child.getId());   // рекурсия
+        else                     total += child.size();                   // виртуальный вызов
+    }
+    return total;
+}
+
+// ===================== проверка прав =====================
+
+/**
+ * @brief У нашего FsEntry нет группы-владельца, как в Unix, только ownerId.
+ * Поэтому «в группе» значит: у пользователя и владельца есть хотя бы одна общая группа.
+ */
+bool FileSystem::sharesGroup(int userId, int ownerId) const {
+    if (ownerId == 0 || ownerId == userId) return false;
+    const std::vector<int>& mine = account(userId).getGroupIds();
+    try {
+        const Account& owner = account(ownerId);
+        for (size_t i = 0; i < mine.size(); ++i)
+            if (owner.isInGroup(mine[i])) return true;
+    } catch (const EntryNotFoundException&) {
+        // владельца уже нет — общей группы тоже нет
+    }
+    return false;
+}
+
+bool FileSystem::allowedByRules(int entryId, Permission::Access a, int userId) const {
+    const Account& acc = account(userId);
+    for (size_t i = 0; i < acls_.size(); ++i) {
+        if (acls_[i].getEntryId() != entryId) continue;
+        int decision = acls_[i].check(a, userId, acc.getGroupIds());
+        if (decision != 0) return decision > 0;
+        break;
+    }
+    const FsEntry& e = entry(entryId);
+    return e.canAccess(a, userId, sharesGroup(userId, e.getOwnerId()));
+}
+
+/**
+ * @brief Право x нужно на каждой папке по пути, как в Unix: иначе гость прочитал бы файл rw-r--r--
+ * из закрытой /home/ivan (rwx------), просто зная путь. Метод не const: отказ пишется в аудит.
+ */
+void FileSystem::checkAccess(int entryId, Permission::Access a, int userId) {
+    const Account& acc = account(userId);
+    if (a == Permission::Access::Read && acc.canReadAnyFile()) return;
+    std::string what;
+    int deniedAt = 0;   // где отказали: папка по пути или сам элемент
+    for (int dir = entry(entryId).getParentId(); dir != 0 && deniedAt == 0; dir = entry(dir).getParentId())
+        if (!allowedByRules(dir, Permission::Access::Execute, userId)) deniedAt = dir;
+    if (deniedAt != 0) {
+        what = "открыть папку " + pathOf(deniedAt);
+    } else if (!allowedByRules(entryId, a, userId)) {
+        deniedAt = entryId;
+        const char* verb = a == Permission::Access::Read ? "читать " : a == Permission::Access::Write ? "изменять " : "выполнять ";
+        what = verb + pathOf(entryId);
+    }
+    if (deniedAt == 0) return;
+    audit_.record(now_, userId, "access", pathOf(entryId), false, "нельзя " + what);
+    throw AccessDeniedException(acc.getLogin(), what);
+}
+
 // ===================== доступ для отчётов и меню =====================
 
 const std::string& FileSystem::getName() const { return name_; }
