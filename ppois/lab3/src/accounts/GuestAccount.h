@@ -1,8 +1,9 @@
 #pragma once
 #include "accounts/UserAccount.h"
+#include "interfaces/IExpirable.h"
 
 /** @brief Временный гость: маленькая квота, короткая сессия, нельзя делиться файлами, есть срок действия. */
-class GuestAccount final : public UserAccount {
+class GuestAccount final : public UserAccount, public IExpirable {
 public:
     /** @brief @throws InvalidOperationException срок действия не позже даты создания. */
     GuestAccount(int id, const std::string& login, const std::string& displayName,
@@ -22,7 +23,7 @@ public:
     bool canLogin(const Timestamp& now) const override;
 
     /** @brief Истёк ли срок: now не раньше expiresAt_. */
-    bool isExpired(const Timestamp& now) const;
+    bool isExpired(const Timestamp& now) const override;
     /**
      * @brief Продлить на days дней: от старого срока, если он ещё не истёк, иначе от now
      * (иначе давно просроченный гость остался бы просроченным).

@@ -1,12 +1,13 @@
 #pragma once
 #include <iostream>
 #include "core/Timestamp.h"
+#include "interfaces/IExpirable.h"
 
 /**
  * @brief Блокировка файла на время работы. Shared — «читаю, другим тоже можно читать»,
  * Exclusive — «пишу, больше никому нельзя». Действует до expiresAt_.
  */
-class FileLock {
+class FileLock : public IExpirable {
 public:
     enum class LockMode { Shared, Exclusive };
 
@@ -20,7 +21,7 @@ public:
      */
     bool conflictsWith(LockMode wanted, int userId) const;
     /** @brief Истёк ли срок: now не раньше expiresAt_. */
-    bool isExpired(const Timestamp& now) const;
+    bool isExpired(const Timestamp& now) const override;
     bool isHeldBy(int userId) const;
     /**
      * @brief Продлить: expiresAt_ = now + minutes.

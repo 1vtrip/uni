@@ -2,13 +2,14 @@
 #include <iostream>
 #include <string>
 #include "core/Timestamp.h"
+#include "interfaces/IExpirable.h"
 #include "meta/Permission.h"
 
 /**
  * @brief Ссылка для общего доступа к файлу: токен, доступ (чтение или запись), срок и лимит переходов.
  * maxUses_ = 0 — переходов без ограничения.
  */
-class ShareLink {
+class ShareLink : public IExpirable {
 public:
     /**
      * @brief Ссылка на days дней от createdAt.
@@ -19,7 +20,7 @@ public:
               const Timestamp& createdAt, int days, int maxUses);
 
     /** @brief Не действует: срок прошёл, ссылку отозвали или переходы закончились. */
-    bool isExpired(const Timestamp& now) const;
+    bool isExpired(const Timestamp& now) const override;
     /**
      * @brief Перейти по ссылке: засчитать переход и вернуть ID файла.
      * @throws ShareLinkExpiredException ссылка не действует (в сообщении — почему).

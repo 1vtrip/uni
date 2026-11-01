@@ -3,9 +3,10 @@
 #include <string>
 #include "core/DataSize.h"
 #include "core/Timestamp.h"
+#include "interfaces/IExpirable.h"
 
 /** @brief Запись в корзине: что удалено, откуда, кем и до какого срока хранится. */
-class TrashItem {
+class TrashItem : public IExpirable {
 public:
     /**
      * @brief Срок хранения: expiresAt_ = deletedAt.addDays(retentionDays).
@@ -15,7 +16,7 @@ public:
               const DataSize& size, const Timestamp& deletedAt, int retentionDays);
 
     /** @brief Истёк ли срок хранения: now не раньше expiresAt_. */
-    bool isExpired(const Timestamp& now) const;
+    bool isExpired(const Timestamp& now) const override;
     /** @brief Сколько полных дней осталось, не меньше 0. */
     int daysLeft(const Timestamp& now) const;
 

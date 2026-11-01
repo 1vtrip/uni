@@ -1,9 +1,10 @@
 #pragma once
 #include <iostream>
 #include "core/Timestamp.h"
+#include "interfaces/IExpirable.h"
 
 /** @brief Сеанс работы пользователя после входа. Истекает, если закрыт или простой больше maxIdleMinutes_. */
-class Session {
+class Session : public IExpirable {
 public:
     /** @brief @throws InvalidOperationException maxIdleMinutes не положительный. */
     Session(int id, int userId, const Timestamp& started, int maxIdleMinutes);
@@ -16,7 +17,7 @@ public:
     /** @brief Закрыть сессию (выход). */
     void close();
     /** @brief Истекла ли: закрыта или простой строго больше maxIdleMinutes_. */
-    bool isExpired(const Timestamp& now) const;
+    bool isExpired(const Timestamp& now) const override;
     /** @brief Сколько минут осталось до истечения по простою, не меньше 0. */
     long long minutesLeft(const Timestamp& now) const;
     /** @brief Длительность: активная — от начала до now, закрытая — от начала до последней активности. */

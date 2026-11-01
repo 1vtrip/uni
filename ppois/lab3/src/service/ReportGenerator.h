@@ -2,6 +2,8 @@
 #include <iostream>
 #include <string>
 #include "core/Timestamp.h"
+#include "interfaces/IExpirable.h"
+#include "interfaces/ISizeable.h"
 
 class FileSystem;   // нужен только как const& в параметрах: FileSystem про отчёты не знает, цикла include нет
 
@@ -30,6 +32,14 @@ public:
      * Подозрительные считаются здесь, с обеими границами периода: AuditLog::suspiciousUsers знает только начало.
      */
     std::string securityReport(const FileSystem& fs, int threshold = 3) const;
+
+    /**
+     * @brief Строка о сроке для любого IExpirable: сессии, ссылки, записи корзины, блокировки, гостя.
+     * Одна функция работает с пятью не связанными классами — в этом смысл интерфейса.
+     */
+    std::string expiryStatus(const IExpirable& item, const std::string& label, const Timestamp& now) const;
+    /** @brief Строка о размере для любого ISizeable: файла или папки, корзины, резервной копии. */
+    std::string sizeLine(const ISizeable& item, const std::string& label) const;
 
     /** @brief @throws InvalidOperationException from позже to. */
     void setPeriod(const Timestamp& from, const Timestamp& to);

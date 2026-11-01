@@ -183,6 +183,14 @@ std::string ReportGenerator::securityReport(const FileSystem& fs, int threshold)
     return out.str();
 }
 
+std::string ReportGenerator::expiryStatus(const IExpirable& item, const std::string& label, const Timestamp& now) const {
+    return pad(label, 30) + (item.isExpired(now) ? "истёк" : "действует");
+}
+
+std::string ReportGenerator::sizeLine(const ISizeable& item, const std::string& label) const {
+    return pad(label, 30) + item.size().toString();
+}
+
 std::ostream& operator<<(std::ostream& os, const ReportGenerator& r) {
     return os << "Отчёты за " << r.from_ << " — " << r.to_;
 }
